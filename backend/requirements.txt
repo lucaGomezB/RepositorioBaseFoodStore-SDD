@@ -1,0 +1,1 @@
+# Python dependencies - to be populated with: fastapi, sqlmodel, alembic, passlib, python-jose, etc.
