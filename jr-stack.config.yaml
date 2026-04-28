@@ -1,0 +1,7 @@
+orchestrator:
+  spec_format: "openspec"
+  provider: "gentle" # Cambiado de 'openai-compatible' a 'gentle'
+  default_models:
+    architect: "gentle-heavy"   # Modelo por defecto de Jr-Stack para diseño
+    developer: "gentle-coding"  # Modelo especializado en código
+    reviewer: "gentle-flash"
