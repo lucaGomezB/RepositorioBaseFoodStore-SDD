@@ -1,0 +1,35 @@
+# Normalize line endings across platforms
+* text=auto
+
+# Python files
+*.py text eol=lf
+
+# JavaScript/TypeScript
+*.js text eol=lf
+*.ts text eol=lf
+*.jsx text eol=lf
+*.tsx text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Markdown and docs
+*.md text eol=lf
+*.txt text eol=lf
+
+# CSS
+*.css text eol=lf
+*.scss text eol=lf
+
+# Build outputs (binary)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+
+# OS files
+.DS_Store binary
