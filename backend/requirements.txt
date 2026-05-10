@@ -15,3 +15,6 @@ bcrypt>=4.1.0
 
 # PostgreSQL
 psycopg2-binary>=2.9.0
+
+# Database migrations
+alembic>=1.13.0
