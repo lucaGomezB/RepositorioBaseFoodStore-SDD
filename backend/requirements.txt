@@ -1,1 +1,17 @@
-# Python dependencies - to be populated with: fastapi, sqlmodel, alembic, passlib, python-jose, etc.
+# FastAPI and server
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+
+# Database
+sqlalchemy>=2.0.0
+
+# Environment and config
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+
+# Security
+bcrypt>=4.1.0
+
+# PostgreSQL
+psycopg2-binary>=2.9.0
