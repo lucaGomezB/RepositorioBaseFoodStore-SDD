@@ -84,10 +84,11 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 10. auth-token-refresh-logout
+### 10. auth-token-refresh-logout ✅
 **Funcionalidad**: Refresh token con rotación, logout, invalidación en BD
 **Historias**: US-003, US-004
 **Depende de**: auth-login-register
+**Estado**: Completado (implementado en backend/api/auth.py)
 
 ---
 
@@ -387,4 +388,4 @@ Sprint 7 (Polish):           38, 39
 **Generado**: 2026-04-28  
 **Actualizado**: 2026-05-11  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 9/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register, setup-error-handling, setup-rate-limiting)
+**Cambios implementados**: 10/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register, setup-error-handling, setup-rate-limiting, auth-token-refresh-logout)
