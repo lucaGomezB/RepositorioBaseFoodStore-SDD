@@ -19,6 +19,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Register exception handlers
+from app.core.handlers import register_exception_handlers
+register_exception_handlers(app)
+
 
 @app.get("/")
 def root():
