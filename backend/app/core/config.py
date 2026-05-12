@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # Security - JWT
     SECRET_KEY: str = "your-super-secret-key-min-32-chars-change-in-production"
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes for access token
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7     # 7 days for refresh token
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173"
@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
     # Environment
     ENVIRONMENT: str = "development"
+
+    # Rate Limiting
+    RATE_LIMIT_LOGIN_REQUESTS: int = 5  # Max requests per window
+    RATE_LIMIT_LOGIN_WINDOW: int = 15   # Window in minutes
 
     @property
     def cors_origins_list(self) -> List[str]:

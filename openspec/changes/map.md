@@ -66,10 +66,11 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 8. setup-rate-limiting
+### 8. setup-rate-limiting ✅
 **Funcionalidad**: slowapi middleware + rate limiting en login (5 intentos/15min)
 **Historias**: US-073
 **Depende de**: setup-backend-config
+**Estado**: Completado (probado: 429 tras 5 intentos, headers correctos)
 
 ---
 
@@ -386,4 +387,4 @@ Sprint 7 (Polish):           38, 39
 **Generado**: 2026-04-28  
 **Actualizado**: 2026-05-11  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 8/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register, setup-error-handling)
+**Cambios implementados**: 9/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register, setup-error-handling, setup-rate-limiting)

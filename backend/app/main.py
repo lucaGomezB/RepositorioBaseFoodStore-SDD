@@ -23,6 +23,16 @@ app.add_middleware(
 from app.core.handlers import register_exception_handlers
 register_exception_handlers(app)
 
+# Register rate limiting
+from app.core.middleware.rate_limiter import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
+# Add limiter to app state for slowapi to work
+app.state.limiter = limiter
+
+# Register custom rate limit exceeded handler
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
+
 
 @app.get("/")
 def root():
