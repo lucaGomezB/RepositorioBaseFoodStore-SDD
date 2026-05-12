@@ -18,38 +18,43 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 2. setup-backend-config
+### 2. setup-backend-config ✅
 **Funcionalidad**: Configuración base del backend (FastAPI, SQLAlchemy, core modules)
 **Historias**: US-000a
 **Depende de**: setup-monorepo-base
+**Estado**: Completado (commit bc63873)
 
 ---
 
-### 3. setup-database-seed
+### 3. setup-database-seed ✅
 **Funcionalidad**: PostgreSQL, Alembic, migraciones y seed data (Roles, EstadoPedido, FormaPago, Usuario admin)
 **Historias**: US-000b
 **Depende de**: setup-backend-config
+**Estado**: Completado (commit c5cb4ea)
 
 ---
 
-### 4. setup-frontend-config
+### 4. setup-frontend-config ✅
 **Funcionalidad**: Configuración base del frontend (React, TypeScript, Vite, Tailwind, TanStack Query)
 **Historias**: US-000c
 **Depende de**: setup-monorepo-base
+**Estado**: Completado (commit bed6b31)
 
 ---
 
-### 5. setup-backend-patterns
+### 5. setup-backend-patterns ✅
 **Funcionalidad**: Patrones de infraestructura (BaseRepository[T], Unit of Work, dependencias FastAPI)
 **Historias**: US-000d
 **Depende de**: setup-database-seed
+**Estado**: Completado (implementado en código)
 
 ---
 
-### 6. setup-zustand-stores
+### 6. setup-zustand-stores ✅
 **Funcionalidad**: Cuatro stores Zustand tipados (authStore, cartStore, paymentStore, uiStore) con persist
 **Historias**: US-000e
 **Depende de**: setup-frontend-config
+**Estado**: Completado (paymentStore creado, 4/4 stores)
 
 ---
 
@@ -69,10 +74,11 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 01 — AUTENTICACIÓN Y AUTORIZACIÓN
 
-### 9. auth-login-register
+### 9. auth-login-register ✅
 **Funcionalidad**: Login con JWT, registro con bcrypt, asignación automática de rol CLIENT
 **Historias**: US-001, US-002
 **Depende de**: setup-backend-patterns, setup-zustand-stores
+**Estado**: Completado (implementado en backend/api/auth.py + frontend/stores)
 
 ---
 
@@ -377,5 +383,6 @@ Sprint 7 (Polish):           38, 39
 ---
 
 **Generado**: 2026-04-28  
+**Actualizado**: 2026-05-11  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 1/39 (solo setup-monorepo-base)
+**Cambios implementados**: 6/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register)

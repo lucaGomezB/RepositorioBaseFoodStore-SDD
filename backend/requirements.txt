@@ -4,6 +4,7 @@ uvicorn[standard]>=0.27.0
 
 # Database
 sqlalchemy>=2.0.0
+sqlmodel>=0.0.14
 
 # Environment and config
 python-dotenv>=1.0.0
