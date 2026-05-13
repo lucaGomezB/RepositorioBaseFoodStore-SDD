@@ -1,0 +1,49 @@
+🧪 Cómo probarlo manualmente
+1. Backend
+# Ir al backend
+cd backend
+# Activar entorno virtual
+.venv\Scripts\activate     # Windows
+# o: source .venv/bin/activate   # Linux/Mac
+# Iniciar servidor
+uvicorn app.main:app --reload
+# Probar endpoints con curl (o desde Swagger en http://localhost:8000/docs)
+Probar login como ADMIN:
+curl -X POST http://localhost:8000/api/v1/auth/login ^
+  -H "Content-Type: application/json" ^
+  -d "{\"email\":\"admin@foodstore.com\",\"password\":\"admin123\"}"
+Probar RBAC — asignar rol (reemplazar TOKEN y USER_ID):
+curl -X PUT http://localhost:8000/api/v1/auth/users/{USER_ID}/role ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization: Bearer {TOKEN}" ^
+  -d "{\"rol_id\": 2}"
+Probar que un CLIENT no puede asignar roles (debe dar 403):
+curl -X PUT http://localhost:8000/api/v1/auth/users/2/role ^
+  -H "Content-Type: application/json" ^
+  -H "Authorization: Bearer {TOKEN_DE_CLIENT}" ^
+  -d "{\"rol_id\": 2}"
+2. Frontend
+# Ir al frontend
+cd frontend
+# Iniciar servidor de desarrollo
+npm run dev
+# Abrir http://localhost:5173
+Probar navegación por rol:
+1. Sin login → ves solo: Catálogo, Iniciar Sesión, Registrarse
+2. Login como admin@foodstore.com / admin123 → ves sidebar completa con todos los items
+3. Si cambias el rol de un usuario desde backend, al hacer login de nuevo ves el menú correspondiente:
+   - CLIENT (rol_id=4): Catálogo, Mi Carrito, Mis Pedidos, Mi Perfil, Mis Direcciones
+   - STOCK (rol_id=2): Productos, Categorías, Ingredientes, Stock
+   - PEDIDOS (rol_id=3): Panel de Pedidos
+   - ADMIN (rol_id=1): Todos los items
+Probar route guards:
+- Sin token, intentá navegar a /categorias → te redirige a /login
+- Con token de CLIENT, intentá navegar a /categorias → ves 403 "Acceso Denegado"
+- Con token de ADMIN o STOCK, /categorias funciona normal
+Probar toasts de error:
+- Hacé una request que devuelva 404 (ej: endpoint inválido) → ves toast rojo "Recurso no encontrado"
+- Si el servidor está caído → ves toast "Error interno"
+Probar Error Boundary:
+- Si un componente React explota, ves la pantalla "Algo salió mal" con botón "Reintentar"
+---
+¿Querés que archive todos los changes del Sprint 1 ahora que están verificados?

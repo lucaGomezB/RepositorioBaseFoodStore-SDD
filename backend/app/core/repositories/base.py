@@ -118,7 +118,7 @@ class BaseRepository(Generic[T]):
             raise ValueError(f"Model {self._model.__name__} has no field '{field}'")
 
         statement = select(self._model).where(getattr(self._model, field) == value)
-        return self.session.execute(statement).first()
+        return self.session.exec(statement).first()
 
     def get_multi_by_field(self, field: str, value: Any) -> List[T]:
         """

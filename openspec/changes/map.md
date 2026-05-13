@@ -124,21 +124,21 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 03 — CATÁLOGO DE PRODUCTOS
 
-### 15. categories-hierarchical
+### 15. categories-hierarchical ✅ *(archived)*
 **Funcionalidad**: CRUD categorías jerárquicas con FK autoreferencial, CTE recursivo
 **Historias**: US-007, US-008, US-009, US-010
 **Depende de**: setup-backend-patterns, auth-rbac-roles
 
 ---
 
-### 16. ingredients-allergens
+### 16. ingredients-allergens ✅ *(archived)*
 **Funcionalidad**: CRUD ingredientes con flag `es_alergeno`
 **Historias**: US-011, US-012, US-013, US-014
 **Depende de**: setup-backend-patterns, auth-rbac-roles
 
 ---
 
-### 17. products-catalog-crud
+### 17. products-catalog-crud ✅ *(archived 2026-05-12)*
 **Funcionalidad**: CRUD productos con precio (NUMERIC), stock, disponibilidad
 **Historias**: US-015, US-020, US-021, US-022
 **Depende de**: categories-hierarchical, ingredients-allergens, auth-rbac-roles
@@ -152,15 +152,15 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 19. products-public-catalog
-**Funcionalidad**: GET /api/v1/productos con filtros, paginación, detalle completo
+### 19. products-public-catalog ✅ *(archived 2026-05-12)*
+**Funcionalidad**: Catálogo público de productos con filtros, paginación, detalle expandido con ingredientes y categorías
 **Historias**: US-018, US-019, US-023
 **Depende de**: products-associations
 
 ---
 
-### 20. frontend-catalog-ui
-**Funcionalidad**: Grid de productos con debounce/filtros/paginación, skeleton loaders
+### 20. frontend-catalog-ui ✅ *(archived 2026-05-12)*
+**Funcionalidad**: Grid de productos con debounce/filtros/paginación, skeleton loaders, detalle expandido
 **Historias**: US-018, US-019, US-023
 **Depende de**: products-public-catalog, frontend-error-handling
 
@@ -168,14 +168,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 04 — GESTIÓN DEL PERFIL DEL CLIENTE
 
-### 21. addresses-delivery
+### 21. addresses-delivery ✅ *(archived 2026-05-12)*
 **Funcionalidad**: CRUD DireccionEntrega, marcar como predeterminada
 **Historias**: US-024, US-025, US-026, US-027, US-028
 **Depende de**: auth-login-register
 
 ---
 
-### 22. user-profile
+### 22. user-profile ✅ *(archived 2026-05-12)*
 **Funcionalidad**: GET perfil propio, editar perfil, cambiar contraseña
 **Historias**: US-061, US-062, US-063
 **Depende de**: auth-login-register
@@ -198,7 +198,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 25. frontend-cart-ui
+### 25. frontend-cart-ui ✅ *(archived 2026-05-12)*
 **Funcionalidad**: CartDrawer/modal, agregar/quitar items, personalizar, resumen de totales
 **Historias**: US-029, US-030, US-031, US-032, US-033, US-034
 **Depende de**: cart-client-side, products-public-catalog
@@ -386,6 +386,8 @@ Sprint 7 (Polish):           38, 39
 ---
 
 **Generado**: 2026-04-28  
-**Actualizado**: 2026-05-11  
+**Actualizado**: 2026-05-13  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 10/39 (setup-monorepo-base, setup-backend-config, setup-database-seed, setup-frontend-config, setup-backend-patterns, setup-zustand-stores, auth-login-register, setup-error-handling, setup-rate-limiting, auth-token-refresh-logout)
+**Cambios implementados**: 37/39 (Sprint 0-6 completos. Pendientes: Sprint 5 MercadoPago + Sprint 7 Polish)
+
+**Último cambio archivado**: frontend-admin-panel-ui (3 tareas, archivado 2026-05-13)

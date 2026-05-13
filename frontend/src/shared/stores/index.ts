@@ -1,7 +1,7 @@
 ﻿// Zustand stores - Main export
 export { useAuthStore } from './authStore';
 export { useCartStore, selectCartItems, selectCartItemCount, selectCartTotal, selectIsCartEmpty, type CartItem } from './cartStore';
-export { useUIStore, selectTheme, selectSidebarOpen, selectActiveModal, selectToasts } from './uiStore';
+export { useUIStore, selectTheme, selectSidebarOpen, selectActiveModal, selectToasts, selectCartDrawerOpen } from './uiStore';
 export { 
   usePaymentStore, 
   selectPaymentMethod, 

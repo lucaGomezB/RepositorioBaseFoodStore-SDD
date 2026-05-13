@@ -7,6 +7,8 @@ from pydantic import BaseModel, EmailStr
 from app.core.database import get_db
 from app.core.auth.tokens import create_access_token, create_refresh_token, decode_token, verify_token_type
 from app.core.auth.deps import get_current_user, TokenPayload
+from app.core.auth.roles import Role
+from app.core.auth.authorization import require_roles
 from app.core.repositories import UsuarioRepository, RefreshTokenRepository
 from app.core.config import settings
 from app.core.middleware.rate_limiter import limiter
@@ -47,6 +49,11 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class AssignRoleRequest(BaseModel):
+    """Schema for assigning a role to a user."""
+    rol_id: int
 
 
 # --- Endpoints ---
@@ -242,4 +249,62 @@ def get_current_user_info(
             detail="User not found"
         )
     
+    return user
+
+
+@router.put("/users/{user_id}/role", response_model=UserResponse)
+def assign_user_role(
+    user_id: int,
+    data: AssignRoleRequest,
+    current_user: TokenPayload = Depends(require_roles(Role.ADMIN)),
+    session: Session = Depends(get_db),
+):
+    """
+    Assign a role to a user. Admin only.
+    
+    RN-RB04: If the target user is an ADMIN and the requester is changing
+    their OWN role away from ADMIN, verify that at least one other ADMIN
+    exists in the system to prevent lockout.
+    
+    Args:
+        user_id: Target user ID
+        data: New role assignment (rol_id)
+        current_user: Authenticated admin user
+        session: Database session
+        
+    Returns:
+        Updated user information
+        
+    Raises:
+        HTTPException: 404 if user not found
+        HTTPException: 400 if last admin tries to self-degrade (RN-RB04)
+        HTTPException: 403 if caller is not admin
+    """
+    usuario_repo = UsuarioRepository(session)
+    user = usuario_repo.get(user_id)
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # RN-RB04: Prevent self-degradation if last admin
+    is_self_degradation = user_id == current_user.user_id
+    is_currently_admin = user.rol_id == Role.ADMIN.value
+    is_changing_away_from_admin = data.rol_id != Role.ADMIN.value
+
+    if is_self_degradation and is_currently_admin and is_changing_away_from_admin:
+        # Count how many admins exist in the system
+        admin_users = usuario_repo.get_by_rol(Role.ADMIN.value)
+        if len(admin_users) <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot remove admin role from the last administrator",
+            )
+
+    # Update role
+    usuario_repo.update(user_id, {"rol_id": data.rol_id})
+    session.refresh(user)
+
     return user

@@ -4,6 +4,27 @@ from fastapi import APIRouter
 # Create main API router
 router = APIRouter()
 
+# Import and include sub-routers
+from app.api.auth import router as auth_router
+from app.api.productos import router as productos_router
+from app.api.categorias import router as categorias_router
+from app.api.ingredientes import router as ingredientes_router
+from app.api.catalogo import router as catalogo_router
+from app.api.direcciones import router as direcciones_router
+from app.api.perfil import router as perfil_router
+from app.api.pedidos import router as pedidos_router
+from app.api.admin import router as admin_router
+
+router.include_router(auth_router)
+router.include_router(productos_router)
+router.include_router(categorias_router)
+router.include_router(ingredientes_router)
+router.include_router(catalogo_router)
+router.include_router(direcciones_router)
+router.include_router(perfil_router)
+router.include_router(pedidos_router)
+router.include_router(admin_router)
+
 
 @router.get("/health")
 def health_check():

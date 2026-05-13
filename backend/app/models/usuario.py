@@ -1,9 +1,12 @@
 # Usuario model
+from datetime import datetime
 from sqlmodel import Field, SQLModel, Relationship
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.rol import Rol
+    from app.models.direccion import Direccion
+    from app.models.pedido import Pedido
 
 
 class Usuario(SQLModel, table=True):
@@ -17,8 +20,12 @@ class Usuario(SQLModel, table=True):
     apellido: str = Field(max_length=100)
     rol_id: int = Field(foreign_key="roles.id", default=4)
     activo: bool = Field(default=True)
+    telefono: Optional[str] = Field(default=None, max_length=20)
     fecha_creacion: str = Field(default=None, max_length=50)
     fecha_actualizacion: str = Field(default=None, max_length=50)
+    eliminado_en: Optional[datetime] = Field(default=None, nullable=True)
 
-    # Relationship
+    # Relationships
     rol: "Rol" = Relationship(sa_relationship_kwargs={"lazy": "joined"})
+    direcciones: list["Direccion"] = Relationship(back_populates="usuario")
+    pedidos: list["Pedido"] = Relationship(back_populates="usuario")

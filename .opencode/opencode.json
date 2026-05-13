@@ -1,0 +1,441 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "gentleman": {
+      "description": "Senior Architect mentor - helpful first, challenging when it matters",
+      "mode": "primary",
+      "prompt": "{file:AGENTS.md}",
+      "tools": {
+        "edit": true,
+        "write": true
+      }
+    },
+    "sdd-apply": {
+      "description": "Implement code changes from task definitions",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-apply/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-archive": {
+      "description": "Archive completed change artifacts",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-archive/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-design": {
+      "description": "Create technical design from proposals",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-design/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-explore": {
+      "description": "Investigate codebase and think through ideas",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-explore/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-init": {
+      "description": "Bootstrap SDD context and project configuration",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-init/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-onboard": {
+      "description": "Guide user through a complete SDD cycle using their real codebase",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-onboard/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-orchestrator": {
+      "description": "OPSX Orchestrator - coordinates OPSX workflow via openspec CLI",
+      "mode": "primary",
+      "permission": {
+        "task": {
+          "*": "deny",
+          "sdd-*": "allow"
+        }
+      },
+      "prompt": "# OPSX Orchestrator Instructions\n\nBind this to the dedicated `sdd-orchestrator` agent only. Do NOT apply it to executor agents.\n\n## Role\n\nYou are a COORDINATOR. You help users work with OPSX — a fluid, CLI-driven spec workflow built on the `openspec` CLI. You do NOT maintain internal artifact state; the `openspec` CLI is the single source of truth.\n\nOPSX replaces the legacy SDD phase system. There are no rigid phase gates. The user can run any action on any change at any time.\n\n## Core Principle\n\n**The `openspec` CLI owns all state.** You never guess what artifacts exist — you always ask the CLI. Commands like `openspec status`, `openspec list`, and `openspec instructions` are your eyes. Trust them.\n\n## Delegation Rules\n\n| Action | Inline | Delegate |\n|--------|--------|----------|\n| Read 1-3 files to decide | ✅ | — |\n| Read 4+ files to explore | — | ✅ |\n| Write one file, mechanical | ✅ | — |\n| Write with analysis / multi-file | — | ✅ |\n| Bash for state (git, openspec status) | ✅ | — |\n| Bash for execution (tests, build) | — | ✅ |\n\n## OPSX Workflow\n\n```\n/opsx:explore  (optional — think before committing)\n       │\n       ▼\n/opsx:propose  (create change + all artifacts in one step)\n       │\n       ▼\n/opsx:apply    (implement tasks from the change)\n       │\n       ▼\n/opsx:archive  (sync specs + close the change)\n```\n\nThe workflow is **fluid** — the user can re-run any step, update any artifact, or jump to any action at any time. There are no phase locks.\n\n## Commands Available\n\nSkills (loaded by context, appear in autocomplete):\n- `openspec-explore` → enter explore mode; thinking partner, no implementation\n- `openspec-propose` → create a change with all artifacts (proposal, design, tasks)\n- `openspec-apply-change` → implement tasks from a change\n- `openspec-archive-change` → sync delta specs + archive a completed change\n\nSlash commands (type directly):\n- `/opsx:explore [topic]` → explore mode\n- `/opsx:propose [change-name]` → propose a new change\n- `/opsx:apply [change-name]` → implement tasks\n- `/opsx:archive [change-name]` → archive the change\n\n## How You Handle Requests\n\nWhen the user asks to work on a change, always start by checking current state:\n\n```bash\nopenspec list --json\n```\n\nThen get the specific change status:\n\n```bash\nopenspec status --change \"<name>\" --json\n```\n\nParse `applyRequires` and `artifacts` to understand what exists and what's needed.\n\n### For each action, delegate to the matching skill:\n\n| User intent | Skill to load |\n|-------------|---------------|\n| \"explore\", \"think about\", \"investigate\" | `openspec-explore` |\n| \"propose\", \"create a change\", \"new feature\" | `openspec-propose` |\n| \"implement\", \"apply\", \"write code\", \"do the tasks\" | `openspec-apply-change` |\n| \"archive\", \"close\", \"done with\" | `openspec-archive-change` |\n\nYou load the skill and let IT handle the full workflow. You don't replicate skill logic inline.\n\n### Domain skills (apply phase)\n\nBefore writing any code during apply, check if the project has a skill registry (`.agents/SKILLS.md` or equivalent). If it exists, read it and identify which domain skills match the change's tasks. Load ALL matching skill SKILL.md files before implementing — they contain project-specific patterns, conventions, and templates that must be followed.\n\n## Artifact Lifecycle\n\nAll artifacts live on the filesystem under `openspec/changes/<name>/`:\n\n```\nopenspec/changes/<name>/\n├── .openspec.yaml   ← change metadata (created by CLI)\n├── proposal.md      ← what & why\n├── design.md        ← how\n├── tasks.md         ← implementation checklist\n└── specs/           ← delta specs (optional)\n```\n\nMain specs (source of truth) live at `openspec/specs/<capability>/spec.md`.\n\nArchive goes to `openspec/changes/archive/YYYY-MM-DD-<name>/`.\n\n## Key CLI Commands Reference\n\n```bash\n# Create a new change\nopenspec new change \"<name>\"\n\n# List active changes\nopenspec list --json\n\n# Get change status + artifact graph\nopenspec status --change \"<name>\" --json\n\n# Get instructions for creating an artifact\nopenspec instructions <artifact-id> --change \"<name>\" --json\n\n# Get apply instructions (implementation context)\nopenspec instructions apply --change \"<name>\" --json\n```\n\n## Rules\n\n- NEVER guess artifact state — always call `openspec status` first\n- NEVER create `openspec/` structure manually — use the CLI\n- NEVER block on phase gates — OPSX is fluid, any action can run at any time\n- If a change name is ambiguous, run `openspec list --json` and ask the user\n- Load the appropriate skill for each action — don't replicate skill logic inline\n- If the user asks about the old `/sdd-*` commands, explain that OPSX replaced them\n\n## Model Assignments\n\n| Phase | Default Model | Reason |\n|-------|---------------|--------|\n| orchestrator | opus | Coordinates, makes decisions |\n| explore | sonnet | Reads code, thinking partner |\n| propose | opus | Architectural decisions |\n| apply | sonnet | Implementation |\n| archive | haiku | File operations |\n| default | sonnet | General delegation |",
+      "tools": {
+        "bash": true,
+        "delegate": true,
+        "delegation_list": true,
+        "delegation_read": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-propose": {
+      "description": "Create change proposals from explorations",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-propose/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-spec": {
+      "description": "Write detailed specifications from proposals",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-spec/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-tasks": {
+      "description": "Break down specs and designs into implementation tasks",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-tasks/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "sdd-verify": {
+      "description": "Validate implementation against specs",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/sdd-verify/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-explore": {
+      "description": "Explore mode - thinking partner, no implementation",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-explore/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-propose": {
+      "description": "Propose a new change with all artifacts",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-propose/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-apply-change": {
+      "description": "Implement tasks from an OpenSpec change",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-apply-change/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-archive-change": {
+      "description": "Archive a completed change",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-archive-change/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-design": {
+      "description": "Create technical design document",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-design/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-spec": {
+      "description": "Write or update specifications",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-spec/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-tasks": {
+      "description": "Create implementation task checklist",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-tasks/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-verify": {
+      "description": "Validate implementation against specs",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-verify/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-init": {
+      "description": "Initialize OPSX in a project",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-init/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "openspec-onboard": {
+      "description": "Guided walkthrough of OPSX workflow",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/openspec-onboard/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "go-testing": {
+      "description": "Go testing patterns for Bubbletea TUI testing",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/go-testing/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "skill-creator": {
+      "description": "Create new AI agent skills",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/skill-creator/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "skill-registry": {
+      "description": "Create or update skill registry",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/skill-registry/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "code-review-excellence": {
+      "description": "Master effective code review practices",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/code-review-excellence/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "judgment-day": {
+      "description": "Parallel adversarial review protocol",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/judgment-day/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "branch-pr": {
+      "description": "PR creation workflow for Agent Teams Lite",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/branch-pr/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "issue-creation": {
+      "description": "Issue creation workflow for Agent Teams Lite",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/issue-creation/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "systematic-debugging": {
+      "description": "Use when encountering any bug, test failure, or unexpected behavior",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/systematic-debugging/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "test-driven-development": {
+      "description": "Use when implementing any feature or bugfix",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/test-driven-development/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "fastapi-templates": {
+      "description": "Create production-ready FastAPI projects",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/fastapi-templates/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    },
+    "find-skills": {
+      "description": "Discover and install agent skills",
+      "hidden": true,
+      "mode": "subagent",
+      "prompt": "{file:skills/find-skills/SKILL.md}",
+      "tools": {
+        "bash": true,
+        "edit": true,
+        "read": true,
+        "write": true
+      }
+    }
+  },
+  "mcp": {
+    "context7": {
+      "enabled": true,
+      "type": "remote",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "engram": {
+      "command": [
+        ".opencode\\engram\\bin\\engram.exe",
+        "mcp",
+        "--tools=agent"
+      ],
+      "type": "local"
+    }
+  },
+  "permission": {
+    "bash": {
+      "*": "allow",
+      "git commit *": "ask",
+      "git push": "ask",
+      "git push *": "ask",
+      "git push --force *": "ask",
+      "git rebase *": "ask",
+      "git reset --hard *": "ask"
+    },
+    "read": {
+      "*": "allow",
+      "**/.env": "deny",
+      "**/.env.*": "deny",
+      "**/credentials.json": "deny",
+      "**/secrets/**": "deny",
+      "*.env": "deny",
+      "*.env.*": "deny"
+    }
+  }
+}

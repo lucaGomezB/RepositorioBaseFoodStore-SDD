@@ -7,7 +7,10 @@ from alembic import context
 
 # Import SQLModel and all models for autogenerate support
 from sqlmodel import SQLModel
-from app.models import Rol, EstadoPedido, FormaPago, Usuario
+from app.models import (
+    Rol, EstadoPedido, FormaPago, Usuario, Producto, Direccion,
+    Pedido, DetallePedido, HistorialEstadoPedido,
+)
 from app.core.config import settings
 
 # this is the Alembic Config object, which provides

@@ -1,6 +1,7 @@
 ﻿# SQLAlchemy database configuration and session management
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.orm import sessionmaker
+from sqlmodel import Session
 from typing import Generator
 from app.core.config import settings
 
@@ -12,7 +13,7 @@ engine = create_engine(
 )
 
 # Session factory
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=Session)
 
 
 def get_db() -> Generator[Session, None, None]:

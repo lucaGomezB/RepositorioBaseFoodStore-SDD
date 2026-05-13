@@ -34,18 +34,18 @@ def seed_roles(session):
 
 
 def seed_estados_pedido(session):
-    """Seed order states with stable IDs."""
+    """Seed order states with semantic codes (v5 PK change)."""
     estados_data = [
-        {"id": 1, "nombre": "PENDIENTE", "descripcion": "Pedido pendiente de confirmación"},
-        {"id": 2, "nombre": "CONFIRMADO", "descripcion": "Pedido confirmado"},
-        {"id": 3, "nombre": "EN_PREPARACION", "descripcion": "Pedido en preparación"},
-        {"id": 4, "nombre": "EN_CAMINO", "descripcion": "Pedido en camino al cliente"},
-        {"id": 5, "nombre": "ENTREGADO", "descripcion": "Pedido entregado"},
-        {"id": 6, "nombre": "CANCELADO", "descripcion": "Pedido cancelado"},
+        {"codigo": "PENDIENTE", "nombre": "Pendiente", "descripcion": "Pedido pendiente de confirmación", "orden": 1, "es_terminal": False},
+        {"codigo": "CONFIRMADO", "nombre": "Confirmado", "descripcion": "Pedido confirmado", "orden": 2, "es_terminal": False},
+        {"codigo": "EN_PREP", "nombre": "En Preparación", "descripcion": "Pedido en preparación", "orden": 3, "es_terminal": False},
+        {"codigo": "EN_CAMINO", "nombre": "En Camino", "descripcion": "Pedido en camino al cliente", "orden": 4, "es_terminal": False},
+        {"codigo": "ENTREGADO", "nombre": "Entregado", "descripcion": "Pedido entregado", "orden": 5, "es_terminal": True},
+        {"codigo": "CANCELADO", "nombre": "Cancelado", "descripcion": "Pedido cancelado", "orden": 6, "es_terminal": True},
     ]
 
     for estado_data in estados_data:
-        existing = session.get(EstadoPedido, estado_data["id"])
+        existing = session.get(EstadoPedido, estado_data["codigo"])
         if not existing:
             estado = EstadoPedido(**estado_data)
             session.add(estado)
