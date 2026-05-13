@@ -9,6 +9,7 @@
 - Always propose alternatives with tradeoffs when relevant.
 - Verify technical claims before stating them. If unsure, investigate first.
 - NEVER use emojis either in code or as a comment.
+- NEVER add .envs or caches to the repository.
 
 ## Personality
 
