@@ -1,6 +1,6 @@
 # Direccion Service
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Session
 
 from app.models.direccion import Direccion
@@ -22,7 +22,7 @@ class DireccionService:
         existing = repo.get_all_by_usuario(usuario_id)
         is_first = len(existing) == 0
 
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         direccion_data = {
             **data,
             "usuario_id": usuario_id,
@@ -50,7 +50,7 @@ class DireccionService:
 
         # Update only provided fields
         values = {k: v for k, v in data.items() if v is not None}
-        values["actualizado_en"] = datetime.utcnow()
+        values["actualizado_en"] = datetime.now(timezone.utc)
 
         for key, value in values.items():
             if hasattr(direccion, key):
@@ -92,12 +92,12 @@ class DireccionService:
             for d in all_user_direcciones:
                 if d.es_predeterminada:
                     d.es_predeterminada = False
-                    d.actualizado_en = datetime.utcnow()
+                    d.actualizado_en = datetime.now(timezone.utc)
                     session.add(d)
 
             # Set the chosen one
             direccion.es_predeterminada = True
-            direccion.actualizado_en = datetime.utcnow()
+            direccion.actualizado_en = datetime.now(timezone.utc)
             session.add(direccion)
 
             session.flush()

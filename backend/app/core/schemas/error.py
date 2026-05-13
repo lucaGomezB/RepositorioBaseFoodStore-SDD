@@ -1,6 +1,6 @@
 # RFC 7807 Problem Details Schema
 from typing import Any, Dict, List, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ValidationError(BaseModel):
@@ -19,37 +19,36 @@ class ProblemDetail(BaseModel):
     type: str = Field(
         ...,
         description="URI reference that identifies the problem type",
-        example="https://api.foodstore.com/errors/not-found"
+        json_schema_extra={"example": "https://api.foodstore.com/errors/not-found"}
     )
     title: str = Field(
         ...,
         description="Human-readable summary of the problem",
-        example="Not Found"
+        json_schema_extra={"example": "Not Found"}
     )
     status: int = Field(
         ...,
         description="HTTP status code",
-        example=404
+        json_schema_extra={"example": 404}
     )
     detail: str = Field(
         ...,
         description="Human-readable explanation specific to this occurrence of the problem",
-        example="Product with ID 123 not found"
+        json_schema_extra={"example": "Product with ID 123 not found"}
     )
     errors: Optional[List[ValidationError]] = Field(
         default=None,
         description="Array of validation errors (used for 422 responses)"
     )
 
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "type": "https://api.foodstore.com/errors/not-found",
-                "title": "Not Found",
-                "status": 404,
-                "detail": "Product with ID 123 not found"
-            }
+    model_config = ConfigDict(json_schema_extra={
+        "example": {
+            "type": "https://api.foodstore.com/errors/not-found",
+            "title": "Not Found",
+            "status": 404,
+            "detail": "Product with ID 123 not found"
         }
+    })
 
 
 def create_problem_response(

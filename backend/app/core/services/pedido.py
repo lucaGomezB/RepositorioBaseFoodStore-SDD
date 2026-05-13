@@ -1,9 +1,10 @@
 # Pedido Service + FSM (Finite State Machine)
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
 from app.models.pedido import Pedido
+from app.core.schemas.pedido import PedidoRead
 from app.models.detalle_pedido import DetallePedido
 from app.models.historial_estado_pedido import HistorialEstadoPedido
 from app.models.producto import Producto
@@ -119,7 +120,7 @@ class PedidoService:
         # ------------------------------------------------------------------
         # Step 3: Create Pedido with address snapshot
         # ------------------------------------------------------------------
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         costo_envio = 50.0  # Fixed for v1 (RN-PE02)
 
         pedido = Pedido(
@@ -279,7 +280,7 @@ class PedidoService:
 
         # Update order state
         pedido.estado_codigo = nuevo_estado
-        pedido.updated_at = datetime.utcnow()
+        pedido.updated_at = datetime.now(timezone.utc)
         session.commit()
         session.refresh(pedido)
         return pedido
@@ -340,10 +341,13 @@ class PedidoService:
         items, total = repo.get_all_by_usuario_paginated(
             usuario_id, estado=estado, skip=skip, limit=limit,
         )
-        # Set items_count on each pedido for the response schema
+        # Convert to PedidoRead with items_count
+        read_items = []
         for p in items:
-            p.items_count = len(p.detalles) if hasattr(p, 'detalles') and p.detalles else 0
-        return items, total
+            pr = PedidoRead.model_validate(p)
+            pr.items_count = len(p.detalles) if p.detalles else 0
+            read_items.append(pr)
+        return read_items, total
 
     @staticmethod
     def listar_pedidos_admin(
@@ -365,9 +369,12 @@ class PedidoService:
             estado=estado, desde=desde, hasta=hasta,
             busqueda=busqueda, skip=skip, limit=limit,
         )
+        read_items = []
         for p in items:
-            p.items_count = len(p.detalles) if hasattr(p, 'detalles') and p.detalles else 0
+            pr = PedidoRead.model_validate(p)
+            pr.items_count = len(p.detalles) if p.detalles else 0
             if p.usuario:
-                p.usuario_nombre = f"{p.usuario.nombre} {p.usuario.apellido}"
-                p.usuario_email = p.usuario.email
-        return items, total
+                pr.usuario_nombre = f"{p.usuario.nombre} {p.usuario.apellido}"
+                pr.usuario_email = p.usuario.email
+            read_items.append(pr)
+        return read_items, total

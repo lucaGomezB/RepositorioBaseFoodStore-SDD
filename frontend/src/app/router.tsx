@@ -14,9 +14,12 @@ import ProductoFormPage from '../pages/ProductoFormPage';
 import MisPedidosPage from '../pages/MisPedidosPage';
 import PedidoDetailPage from '../pages/PedidoDetailPage';
 import PanelPedidosPage from '../pages/PanelPedidosPage';
+import CheckoutPage from '../pages/CheckoutPage';
+import OrderConfirmationPage from '../pages/OrderConfirmationPage';
 import MetricasPage from '../pages/MetricasPage';
 import StockPage from '../pages/StockPage';
 import UsuariosPage from '../pages/UsuariosPage';
+import ConfiguracionPage from '../pages/ConfiguracionPage';
 
 /**
  * Route configuration for the Food Store frontend.
@@ -52,6 +55,8 @@ export const routes: RouteObject[] = [
         element: <ProtectedRoute requiredRoles={[1, 4]} />,
         children: [
           { path: 'carrito', element: <CartPage /> },
+          { path: 'checkout', element: <CheckoutPage /> },
+          { path: 'pedidos/:id/confirmacion', element: <OrderConfirmationPage /> },
           { path: 'perfil', element: <ProfilePage /> },
           { path: 'mis-pedidos', element: <MisPedidosPage /> },
           { path: 'mis-pedidos/:id', element: <PedidoDetailPage /> },
@@ -70,15 +75,7 @@ export const routes: RouteObject[] = [
         children: [
           { path: 'metricas', element: <MetricasPage /> },
           { path: 'usuarios', element: <UsuariosPage /> },
-          {
-            path: 'configuracion',
-            element: (
-              <div className="p-4">
-                <h1>Configuración</h1>
-                <p className="text-gray-500">Próximamente</p>
-              </div>
-            ),
-          },
+          { path: 'configuracion', element: <ConfiguracionPage /> },
         ],
       },
     ],

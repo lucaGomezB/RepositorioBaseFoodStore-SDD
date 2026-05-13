@@ -1,0 +1,129 @@
+# Pagos Router — MercadoPago payment endpoints
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlmodel import Session
+
+from app.core.database import get_db
+from app.core.auth.deps import get_current_user, TokenPayload
+from app.core.auth.authorization import require_roles
+from app.core.auth.roles import Role
+from app.core.schemas.pago import (
+    PagoCreateRequest,
+    PagoRead,
+    PagoWebhookRequest,
+    PagoStatusResponse,
+)
+from app.core.services.pago import PagoService
+
+router = APIRouter(prefix="/pagos", tags=["Pagos"])
+
+
+@router.post("/crear", response_model=PagoRead, status_code=status.HTTP_201_CREATED)
+def crear_pago(
+    data: PagoCreateRequest,
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(require_roles(Role.CLIENT, Role.ADMIN)),
+):
+    """Create a payment for an order via MercadoPago.
+
+    Validates the order exists, is in PENDIENTE state, belongs to the
+    current user, and calls the MercadoPago API to process the payment.
+
+    The card_token must be generated client-side via MercadoPago.js
+    (PCI SAQ-A compliant — card data NEVER reaches our server).
+    """
+    try:
+        pago = PagoService.crear_pago(
+            session=session,
+            pedido_id=data.pedido_id,
+            usuario_id=current_user.user_id,
+            card_token=data.card_token,
+            payment_method_id=data.payment_method_id,
+        )
+        return pago
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear pago: {str(e)}",
+        )
+
+
+@router.get("/{pedido_id}", response_model=PagoRead)
+def obtener_pago(
+    pedido_id: int,
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(get_current_user),
+):
+    """Get payment status for an order.
+
+    CLIENT users can only view their own orders' payments.
+    ADMIN users can view any payment.
+    """
+    is_admin = current_user.rol_id == Role.ADMIN.value
+    try:
+        pago = PagoService.obtener_pago_por_pedido(
+            session=session,
+            pedido_id=pedido_id,
+            usuario_id=current_user.user_id,
+            is_admin=is_admin,
+        )
+        return pago
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al consultar pago: {str(e)}",
+        )
+
+
+@router.post("/webhook")
+async def webhook_pago(
+    request: Request,
+    session: Session = Depends(get_db),
+):
+    """Receive MercadoPago IPN webhook notification.
+
+    This endpoint is PUBLIC (no auth) by design — MercadoPago sends
+    notifications without authentication. Security is handled via
+    X-Signature validation.
+
+    Responds 200 immediately per RN-PA03, then processes the
+    notification asynchronously.
+    """
+    # Get raw body before any parsing (needed for signature verification)
+    raw_body = await request.body()
+
+    # Validate webhook signature
+    signature_header = request.headers.get("x-signature")
+    try:
+        PagoService.verificar_firma_webhook(
+            signature_header=signature_header,
+            raw_body=raw_body,
+        )
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Error al validar firma del webhook",
+        )
+
+    # Parse webhook data
+    try:
+        body = await request.json()
+        webhook_type = body.get("type", "")
+        webhook_data = body.get("data", {})
+
+        result = PagoService.procesar_webhook(
+            session=session,
+            webhook_type=webhook_type,
+            webhook_data=webhook_data,
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Always return 200 to prevent MercadoPago retries
+        return {"status": "error", "detail": str(e)}

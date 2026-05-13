@@ -28,8 +28,8 @@ def session(engine):
 @pytest.fixture
 def test_user(session: Session) -> Usuario:
     """Create a test user in the database."""
-    from datetime import datetime
-    now = datetime.utcnow().isoformat()
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
     user = Usuario(
         email="test@example.com",
         password_hash="hashedpassword",

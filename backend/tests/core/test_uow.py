@@ -1,6 +1,6 @@
 # Tests for UnitOfWork
 import pytest
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlmodel import Session
 from app.core.uow import UnitOfWork
 from app.core.repositories.base import BaseRepository
@@ -9,7 +9,7 @@ from app.models.usuario import Usuario
 
 def make_user(**kwargs) -> Usuario:
     """Helper to create user with defaults."""
-    now = datetime.utcnow().isoformat()
+    now = datetime.now(timezone.utc).isoformat()
     defaults = {
         "email": "default@example.com",
         "password_hash": "hash",

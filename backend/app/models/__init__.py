@@ -13,11 +13,13 @@ from app.models.direccion import Direccion
 from app.models.pedido import Pedido
 from app.models.detalle_pedido import DetallePedido
 from app.models.historial_estado_pedido import HistorialEstadoPedido
+from app.models.pago import Pago
+from app.models.configuracion import Configuracion
 
 __all__ = [
     "Rol", "EstadoPedido", "FormaPago", "Usuario",
     "Categoria", "Ingrediente", "Producto",
     "ProductoCategoria", "ProductoIngrediente",
     "RefreshToken", "Direccion",
-    "Pedido", "DetallePedido", "HistorialEstadoPedido",
+    "Pedido", "DetallePedido", "HistorialEstadoPedido", "Pago", "Configuracion",
 ]

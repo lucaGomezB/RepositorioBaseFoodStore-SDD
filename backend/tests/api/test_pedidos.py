@@ -131,7 +131,7 @@ def create_product(session: Session, **overrides) -> Producto:
 
 def create_direccion(session: Session, usuario_id: int, **overrides) -> Direccion:
     """Factory helper to create a Direccion row."""
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     defaults = dict(
         usuario_id=usuario_id,
         calle="Av. Corrientes",

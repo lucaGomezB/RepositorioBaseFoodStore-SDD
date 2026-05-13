@@ -1,4 +1,4 @@
-# Changes Map — Food Store
+﻿# Changes Map — Food Store
 
 ## Overview
 
@@ -10,7 +10,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## SPRINT 0 — INFRAESTRUCTURA
 
-### 1. setup-monorepo-base ✅
+### 1. setup-monorepo-base [DONE]
 **Funcionalidad**: Scaffolding del monorepo con estructura base (backend + frontend)
 **Historias**: US-000
 **Depende de**: Ninguna
@@ -18,7 +18,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 2. setup-backend-config ✅
+### 2. setup-backend-config [DONE]
 **Funcionalidad**: Configuración base del backend (FastAPI, SQLAlchemy, core modules)
 **Historias**: US-000a
 **Depende de**: setup-monorepo-base
@@ -26,7 +26,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 3. setup-database-seed ✅
+### 3. setup-database-seed [DONE]
 **Funcionalidad**: PostgreSQL, Alembic, migraciones y seed data (Roles, EstadoPedido, FormaPago, Usuario admin)
 **Historias**: US-000b
 **Depende de**: setup-backend-config
@@ -34,7 +34,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 4. setup-frontend-config ✅
+### 4. setup-frontend-config [DONE]
 **Funcionalidad**: Configuración base del frontend (React, TypeScript, Vite, Tailwind, TanStack Query)
 **Historias**: US-000c
 **Depende de**: setup-monorepo-base
@@ -42,7 +42,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 5. setup-backend-patterns ✅
+### 5. setup-backend-patterns [DONE]
 **Funcionalidad**: Patrones de infraestructura (BaseRepository[T], Unit of Work, dependencias FastAPI)
 **Historias**: US-000d
 **Depende de**: setup-database-seed
@@ -50,7 +50,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 6. setup-zustand-stores ✅
+### 6. setup-zustand-stores [DONE]
 **Funcionalidad**: Cuatro stores Zustand tipados (authStore, cartStore, paymentStore, uiStore) con persist
 **Historias**: US-000e
 **Depende de**: setup-frontend-config
@@ -58,7 +58,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 7. setup-error-handling ✅
+### 7. setup-error-handling [DONE]
 **Funcionalidad**: Manejo centralizado de errores (RFC 7807) + validación/sanitización de inputs
 **Historias**: US-068, US-074
 **Depende de**: setup-backend-config
@@ -66,7 +66,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 8. setup-rate-limiting ✅
+### 8. setup-rate-limiting [DONE]
 **Funcionalidad**: slowapi middleware + rate limiting en login (5 intentos/15min)
 **Historias**: US-073
 **Depende de**: setup-backend-config
@@ -76,15 +76,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 01 — AUTENTICACIÓN Y AUTORIZACIÓN
 
-### 9. auth-login-register ✅
+### 9. auth-login-register [DONE] (archived)
 **Funcionalidad**: Login con JWT, registro con bcrypt, asignación automática de rol CLIENT
 **Historias**: US-001, US-002
 **Depende de**: setup-backend-patterns, setup-zustand-stores
-**Estado**: Completado (implementado en backend/api/auth.py + frontend/stores)
 
 ---
 
-### 10. auth-token-refresh-logout ✅
+### 10. auth-token-refresh-logout [DONE]
 **Funcionalidad**: Refresh token con rotación, logout, invalidación en BD
 **Historias**: US-003, US-004
 **Depende de**: auth-login-register
@@ -92,14 +91,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 11. auth-rbac-roles
+### 11. auth-rbac-roles [DONE] (archived)
 **Funcionalidad**: Modelo RBAC, asignación de roles (ADMIN, STOCK, PEDIDOS, CLIENT), verificación per-endpoint
 **Historias**: US-005, US-006
 **Depende de**: auth-login-register
 
 ---
 
-### 12. frontend-auth-guards
+### 12. frontend-auth-guards [DONE] *(archived)*
 **Funcionalidad**: Route guards, interceptor 401 automático con refresh, protección de rutas
 **Historias**: US-066, US-076
 **Depende de**: auth-login-register, auth-rbac-roles
@@ -108,14 +107,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 02 — NAVEGACIÓN Y LAYOUT
 
-### 13. frontend-navigation-ui
+### 13. frontend-navigation-ui [DONE] *(archived)*
 **Funcionalidad**: Sidebar/navbar adaptado a rol, menú contextual
 **Historias**: US-075
 **Depende de**: frontend-auth-guards
 
 ---
 
-### 14. frontend-error-handling
+### 14. frontend-error-handling [DONE] *(archived)*
 **Funcionalidad**: Error boundary global, toast/notification system
 **Historias**: US-067
 **Depende de**: setup-frontend-config
@@ -124,21 +123,21 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 03 — CATÁLOGO DE PRODUCTOS
 
-### 15. categories-hierarchical ✅ *(archived)*
+### 15. categories-hierarchical [DONE] *(archived)*
 **Funcionalidad**: CRUD categorías jerárquicas con FK autoreferencial, CTE recursivo
 **Historias**: US-007, US-008, US-009, US-010
 **Depende de**: setup-backend-patterns, auth-rbac-roles
 
 ---
 
-### 16. ingredients-allergens ✅ *(archived)*
+### 16. ingredients-allergens [DONE] *(archived)*
 **Funcionalidad**: CRUD ingredientes con flag `es_alergeno`
 **Historias**: US-011, US-012, US-013, US-014
 **Depende de**: setup-backend-patterns, auth-rbac-roles
 
 ---
 
-### 17. products-catalog-crud ✅ *(archived 2026-05-12)*
+### 17. products-catalog-crud [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: CRUD productos con precio (NUMERIC), stock, disponibilidad
 **Historias**: US-015, US-020, US-021, US-022
 **Depende de**: categories-hierarchical, ingredients-allergens, auth-rbac-roles
@@ -152,14 +151,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ---
 
-### 19. products-public-catalog ✅ *(archived 2026-05-12)*
+### 19. products-public-catalog [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: Catálogo público de productos con filtros, paginación, detalle expandido con ingredientes y categorías
 **Historias**: US-018, US-019, US-023
 **Depende de**: products-associations
 
 ---
 
-### 20. frontend-catalog-ui ✅ *(archived 2026-05-12)*
+### 20. frontend-catalog-ui [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: Grid de productos con debounce/filtros/paginación, skeleton loaders, detalle expandido
 **Historias**: US-018, US-019, US-023
 **Depende de**: products-public-catalog, frontend-error-handling
@@ -168,21 +167,21 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 04 — GESTIÓN DEL PERFIL DEL CLIENTE
 
-### 21. addresses-delivery ✅ *(archived 2026-05-12)*
+### 21. addresses-delivery [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: CRUD DireccionEntrega, marcar como predeterminada
 **Historias**: US-024, US-025, US-026, US-027, US-028
 **Depende de**: auth-login-register
 
 ---
 
-### 22. user-profile ✅ *(archived 2026-05-12)*
+### 22. user-profile [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: GET perfil propio, editar perfil, cambiar contraseña
 **Historias**: US-061, US-062, US-063
 **Depende de**: auth-login-register
 
 ---
 
-### 23. frontend-profile-ui
+### 23. frontend-profile-ui [DONE] *(archived)*
 **Funcionalidad**: Formularios de perfil, gestor de direcciones, cambio de contraseña
 **Historias**: US-061, US-062, US-063, US-024, US-025, US-026, US-027, US-028
 **Depende de**: addresses-delivery, user-profile
@@ -191,14 +190,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 05 — CARRITO DE COMPRAS
 
-### 24. cart-client-side
+### 24. cart-client-side [DONE] *(archived)*
 **Funcionalidad**: Carrito local en Zustand + localStorage, personalizaciones
 **Historias**: US-029, US-030, US-031, US-032, US-033, US-034
 **Depende de**: setup-zustand-stores, products-associations
 
 ---
 
-### 25. frontend-cart-ui ✅ *(archived 2026-05-12)*
+### 25. frontend-cart-ui [DONE] *(archived 2026-05-12)*
 **Funcionalidad**: CartDrawer/modal, agregar/quitar items, personalizar, resumen de totales
 **Historias**: US-029, US-030, US-031, US-032, US-033, US-034
 **Depende de**: cart-client-side, products-public-catalog
@@ -237,14 +236,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 07 — PAGOS Y MERCADOPAGO
 
-### 30. payments-mercadopago-integration
+### 30. payments-mercadopago-integration [DONE] *(implementado en payment-core)*
 **Funcionalidad**: Creación de preferencia de pago, tokenización segura (PCI SAQ-A)
 **Historias**: US-045
 **Depende de**: orders-creation-fsm, setup-zustand-stores
 
 ---
 
-### 31. payments-webhook-ipn
+### 31. payments-webhook-ipn [DONE] *(implementado en payment-core)*
 **Funcionalidad**: Endpoint webhook IPN, avanzar estado a CONFIRMADO, decrementar stock
 **Historias**: US-046
 **Depende de**: payments-mercadopago-integration, orders-state-transitions, products-catalog-crud
@@ -260,35 +259,35 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## EPIC 08 — PANEL DE ADMINISTRACIÓN
 
-### 33. admin-dashboard-metrics
+### 33. admin-dashboard-metrics [DONE] *(archived)*
 **Funcionalidad**: KPIs, gráficos con recharts, filtros por fecha
 **Historias**: US-052
 **Depende de**: orders-creation-fsm, payments-webhook-ipn
 
 ---
 
-### 34. admin-users-management
+### 34. admin-users-management [DONE] *(archived)*
 **Funcionalidad**: CRUD usuarios, asignación de roles, soft delete
 **Historias**: US-053, US-054
 **Depende de**: auth-rbac-roles
 
 ---
 
-### 35. admin-stock-management
+### 35. admin-stock-management [DONE] *(archived)*
 **Funcionalidad**: Vista de productos con stock bajo, bulk update de stock
 **Historias**: US-055
 **Depende de**: products-catalog-crud
 
 ---
 
-### 36. admin-orders-management
+### 36. admin-orders-management [DONE] *(archived)*
 **Funcionalidad**: Vista de todos los pedidos, transiciones de estado, cancelaciones
 **Historias**: US-056, US-057, US-058, US-059, US-060
 **Depende de**: orders-state-transitions, orders-history-audit-trail
 
 ---
 
-### 37. frontend-admin-panel-ui
+### 37. frontend-admin-panel-ui [DONE] *(archived)*
 **Funcionalidad**: Layout del admin, navegación a cada módulo
 **Historias**: US-052, US-053, US-054, US-055, US-056, US-057, US-058, US-059, US-060
 **Depende de**: admin-dashboard-metrics, admin-users-management, admin-stock-management, admin-orders-management
@@ -313,7 +312,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 
 ## RESUMEN POR CRITICIDAD
 
-### 🔴 CRÍTICAS (bloqueantes)
+### [CRITICAL][CRITICAL] CRÍTICAS (bloqueantes)
 | # | Change | Depende de |
 |---|--------|-----------|
 | 1 | setup-monorepo-base | — |
@@ -329,7 +328,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 | 31 | payments-webhook-ipn | 30, 27, 17 |
 | 32 | frontend-payment-checkout | 30, 25, 6 |
 
-### 🟠 ALTAS
+### [CRITICAL][HIGH] ALTAS
 | # | Change | Depende de |
 |---|--------|-----------|
 | 4 | setup-frontend-config | 1 |
@@ -353,7 +352,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 | 29 | frontend-orders-list-detail | 27, 28 |
 | 33 | admin-dashboard-metrics | 26, 31 |
 
-### 🟡 MEDIAS
+### [CRITICAL][MEDIUM] MEDIAS
 | # | Change | Depende de |
 |---|--------|-----------|
 | 23 | frontend-profile-ui | 21, 22 |
@@ -362,7 +361,7 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 | 36 | admin-orders-management | 27, 28 |
 | 37 | frontend-admin-panel-ui | 33-36 |
 
-### 🟢 BAJAS
+### [CRITICAL][LOW] BAJAS
 | # | Change | Depende de |
 |---|--------|-----------|
 | 38 | documentation-api-openapi | Todos |
@@ -373,14 +372,14 @@ Mapa completo de 39 changes ordenados por dependencias reales para desarrollar F
 ## ORDEN RECOMENDADO DE IMPLEMENTACIÓN
 
 ```
-Sprint 0 (Infraestructura):  1, 2, 3, 4, 5, 6, 7, 8
-Sprint 1 (Auth):             9, 10, 11, 12, 13, 14
-Sprint 2 (Catálogo):        15, 16, 17, 18, 19, 20
-Sprint 3 (Perfil+Carrito):  21, 22, 23, 24, 25
-Sprint 4 (Pedidos):         26, 27, 28, 29
-Sprint 5 (Pagos):           30, 31, 32
-Sprint 6 (Admin):           33, 34, 35, 36, 37
-Sprint 7 (Polish):           38, 39
+Sprint 0 (Infraestructura):  1, 2, 3, 4, 5, 6, 7, 8   [DONE]
+Sprint 1 (Auth):             9, 10, 11, 12, 13, 14     [DONE]
+Sprint 2 (Catálogo):        15, 16, 17, 18, 19, 20     [DONE]
+Sprint 3 (Perfil+Carrito):  21, 22, 23, 24, 25         [DONE]
+Sprint 4 (Pedidos):         26, 27, 28, 29             [DONE]
+Sprint 5 (Pagos):           30, 31, 32                  [DONE]
+Sprint 6 (Admin):           33, 34, 35, 36, 37          [DONE]
+Sprint 7 (Polish):           38, 39                      [PENDING] Pendiente
 ```
 
 ---
@@ -388,6 +387,6 @@ Sprint 7 (Polish):           38, 39
 **Generado**: 2026-04-28  
 **Actualizado**: 2026-05-13  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 37/39 (Sprint 0-6 completos. Pendientes: Sprint 5 MercadoPago + Sprint 7 Polish)
+**Cambios implementados**: 37/39 (Sprints 0-6 completos. Pendiente: Sprint 7 Polish)
 
-**Último cambio archivado**: frontend-admin-panel-ui (3 tareas, archivado 2026-05-13)
+**Último cambio archivado**: admin-orders-management (archivado 2026-05-13)

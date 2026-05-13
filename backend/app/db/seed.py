@@ -8,6 +8,7 @@ from app.models.rol import Rol
 from app.models.estado_pedido import EstadoPedido
 from app.models.forma_pago import FormaPago
 from app.models.usuario import Usuario
+from app.models.configuracion import Configuracion
 
 
 # Create engine and session
@@ -38,7 +39,7 @@ def seed_estados_pedido(session):
     estados_data = [
         {"codigo": "PENDIENTE", "nombre": "Pendiente", "descripcion": "Pedido pendiente de confirmación", "orden": 1, "es_terminal": False},
         {"codigo": "CONFIRMADO", "nombre": "Confirmado", "descripcion": "Pedido confirmado", "orden": 2, "es_terminal": False},
-        {"codigo": "EN_PREP", "nombre": "En Preparación", "descripcion": "Pedido en preparación", "orden": 3, "es_terminal": False},
+        {"codigo": "EN_PREPARACION", "nombre": "En Preparación", "descripcion": "Pedido en preparación", "orden": 3, "es_terminal": False},
         {"codigo": "EN_CAMINO", "nombre": "En Camino", "descripcion": "Pedido en camino al cliente", "orden": 4, "es_terminal": False},
         {"codigo": "ENTREGADO", "nombre": "Entregado", "descripcion": "Pedido entregado", "orden": 5, "es_terminal": True},
         {"codigo": "CANCELADO", "nombre": "Cancelado", "descripcion": "Pedido cancelado", "orden": 6, "es_terminal": True},
@@ -97,6 +98,32 @@ def seed_admin_user(session):
         print("[OK] Admin user already exists")
 
 
+def seed_configuraciones(session):
+    """Seed default system configurations."""
+    configs_data = [
+        {"clave": "costo_envio", "valor": "50.00", "descripcion": "Costo fijo de envío"},
+        {"clave": "horario_apertura", "valor": "09:00", "descripcion": "Horario de apertura (HH:MM)"},
+        {"clave": "horario_cierre", "valor": "22:00", "descripcion": "Horario de cierre (HH:MM)"},
+        {"clave": "tiempo_estimado_entrega_min", "valor": "30", "descripcion": "Tiempo estimado de entrega en minutos"},
+        {"clave": "telefono_contacto", "valor": "", "descripcion": "Teléfono de contacto del local"},
+        {"clave": "direccion_local", "valor": "", "descripcion": "Dirección del local"},
+    ]
+
+    for cfg in configs_data:
+        existing = session.get(Configuracion, cfg["clave"])
+        if not existing:
+from datetime import datetime, timezone
+            config = Configuracion(
+                clave=cfg["clave"],
+                valor=cfg["valor"],
+                descripcion=cfg["descripcion"],
+                updated_at=datetime.now(timezone.utc),
+            )
+            session.add(config)
+    session.commit()
+    print("[OK] Configuraciones seeded")
+
+
 def main():
     """Run all seed functions."""
     print("Starting seed...")
@@ -107,6 +134,7 @@ def main():
         seed_estados_pedido(session)
         seed_formas_pago(session)
         seed_admin_user(session)
+        seed_configuraciones(session)
         print("\n[OK] All seed data populated successfully!")
     except Exception as e:
         print(f"\n✗ Error during seed: {e}")

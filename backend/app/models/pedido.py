@@ -8,6 +8,7 @@ if TYPE_CHECKING:
     from app.models.estado_pedido import EstadoPedido
     from app.models.detalle_pedido import DetallePedido
     from app.models.historial_estado_pedido import HistorialEstadoPedido
+    from app.models.pago import Pago
 
 
 class Pedido(SQLModel, table=True):
@@ -40,3 +41,4 @@ class Pedido(SQLModel, table=True):
     estado: "EstadoPedido" = Relationship(back_populates="pedidos")
     detalles: list["DetallePedido"] = Relationship(back_populates="pedido")
     historial_estados: list["HistorialEstadoPedido"] = Relationship(back_populates="pedido")
+    pagos: list["Pago"] = Relationship(back_populates="pedido")

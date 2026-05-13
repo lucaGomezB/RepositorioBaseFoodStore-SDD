@@ -1,8 +1,8 @@
 # Auth endpoints
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlalchemy.orm import Session
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr
 
 from app.core.database import get_db
 from app.core.auth.tokens import create_access_token, create_refresh_token, decode_token, verify_token_type
@@ -47,8 +47,7 @@ class UserResponse(BaseModel):
     rol_id: int
     activo: bool
     
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class AssignRoleRequest(BaseModel):
@@ -115,7 +114,7 @@ def login(
     
     # Store refresh token in database
     refresh_token_repo = RefreshTokenRepository(session)
-    expires_at = (datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)).isoformat()
     refresh_token_repo.create_token(refresh_token, user.id, expires_at)
     
     return TokenResponse(
@@ -191,7 +190,7 @@ def refresh_token(
     
     # Revoke old refresh token and create new one
     refresh_token_repo.revoke_token(data.refresh_token)
-    expires_at = (datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)).isoformat()
+    expires_at = (datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)).isoformat()
     refresh_token_repo.create_token(new_refresh_token, user.id, expires_at)
     
     return TokenResponse(

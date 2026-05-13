@@ -195,7 +195,7 @@ class ProductoService:
         repo = ProductoRepository(session)
         producto = repo.get(producto_id)
 
-        if not producto or not producto.disponible:
+        if not producto or not producto.disponible or producto.eliminado_en:
             return None
 
         ingredientes = repo.get_ingredientes(producto_id)

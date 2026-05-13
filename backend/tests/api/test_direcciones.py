@@ -100,7 +100,7 @@ def create_direccion_in_db(
 ) -> Direccion:
     """Create a Direccion directly in the DB (bypassing API)."""
     from datetime import datetime
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     defaults = dict(
         usuario_id=usuario_id,
         calle="Av. Siempre Viva",

@@ -50,7 +50,7 @@ def upgrade() -> None:
     estado_map = {
         1: {"codigo": "PENDIENTE", "orden": 1, "es_terminal": False},
         2: {"codigo": "CONFIRMADO", "orden": 2, "es_terminal": False},
-        3: {"codigo": "EN_PREP", "orden": 3, "es_terminal": False},
+        3: {"codigo": "EN_PREPARACION", "orden": 3, "es_terminal": False},
         4: {"codigo": "EN_CAMINO", "orden": 4, "es_terminal": False},
         5: {"codigo": "ENTREGADO", "orden": 5, "es_terminal": True},
         6: {"codigo": "CANCELADO", "orden": 6, "es_terminal": True},

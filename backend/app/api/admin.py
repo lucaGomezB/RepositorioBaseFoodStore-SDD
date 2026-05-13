@@ -16,7 +16,9 @@ from app.core.schemas.pedido import (
     AdminPedidoDetail,
     PedidoListResponse,
 )
+from app.core.schemas.configuracion import ConfigRead, ConfigUpdateRequest
 from app.core.services.pedido import PedidoService
+from app.core.services.configuracion import ConfiguracionService
 from app.models import Pedido, DetallePedido, EstadoPedido, Usuario, Producto
 
 router = APIRouter(prefix="/admin", tags=["Admin / Metrics"])
@@ -408,3 +410,28 @@ def asignar_rol_usuario(
     session.refresh(user)
 
     return user
+
+
+# ---------------------------------------------------------------------------
+# System Configuration
+# ---------------------------------------------------------------------------
+
+
+@router.get("/configuracion", response_model=list[ConfigRead])
+def listar_configuracion(
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(require_roles(Role.ADMIN)),
+):
+    """List all system configurations."""
+    return ConfiguracionService.listar(session)
+
+
+@router.put("/configuracion", response_model=list[ConfigRead])
+def actualizar_configuracion(
+    data: ConfigUpdateRequest,
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(require_roles(Role.ADMIN)),
+):
+    """Update system configurations."""
+    items = [item.model_dump() for item in data.configuraciones]
+    return ConfiguracionService.actualizar(session, items, current_user.user_id)

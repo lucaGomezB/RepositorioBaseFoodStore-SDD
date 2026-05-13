@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 
 # --- ESQUEMAS DE ENTRADA (Validación) ---
@@ -27,16 +27,14 @@ class CategoriaRead(BaseModel):
     parent_id: Optional[int] = None
     orden_display: int
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 class CategoriaTree(CategoriaRead):
     """Schema para devolver la jerarquía de categorías con sus hijos."""
     subcategorias: List["CategoriaTree"] = []
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 CategoriaTree.model_rebuild()

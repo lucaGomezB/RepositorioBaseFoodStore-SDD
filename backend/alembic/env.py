@@ -9,7 +9,7 @@ from alembic import context
 from sqlmodel import SQLModel
 from app.models import (
     Rol, EstadoPedido, FormaPago, Usuario, Producto, Direccion,
-    Pedido, DetallePedido, HistorialEstadoPedido,
+    Pedido, DetallePedido, HistorialEstadoPedido, Pago, Configuracion,
 )
 from app.core.config import settings
 
