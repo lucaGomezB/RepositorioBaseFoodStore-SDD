@@ -9,6 +9,7 @@ import time
 from app.main import app
 from app.core.auth.tokens import create_access_token
 from app.models.ingrediente import Ingrediente
+from app.models.usuario import Usuario
 from app.core.database import get_db
 
 
@@ -64,21 +65,51 @@ def make_token(user_id: int, email: str, rol_id: int) -> str:
 # --- Fixtures for auth tokens ---
 
 @pytest.fixture
-def admin_token() -> str:
-    """Token for ADMIN user (rol_id=1)."""
-    return make_token(user_id=1, email="admin@test.com", rol_id=1)
+def admin_token(session: Session) -> str:
+    """Token for ADMIN user (rol_id=1). Actual user created in DB."""
+    from app.models.usuario_rol import UsuarioRol
+    now = datetime.now(timezone.utc).isoformat()
+    user = Usuario(
+        email="admin@test.com", password_hash="hashed", nombre="Admin", apellido="Test",
+        activo=True, fecha_creacion=now, fecha_actualizacion=now,
+    )
+    session.add(user)
+    session.flush()
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=1))
+    session.commit()
+    return make_token(user_id=user.id, email=user.email, rol_id=1)
 
 
 @pytest.fixture
-def stock_token() -> str:
-    """Token for STOCK user (rol_id=2)."""
-    return make_token(user_id=2, email="stock@test.com", rol_id=2)
+def stock_token(session: Session) -> str:
+    """Token for STOCK user (rol_id=2). Actual user created in DB."""
+    from app.models.usuario_rol import UsuarioRol
+    now = datetime.now(timezone.utc).isoformat()
+    user = Usuario(
+        email="stock@test.com", password_hash="hashed", nombre="Stock", apellido="Test",
+        activo=True, fecha_creacion=now, fecha_actualizacion=now,
+    )
+    session.add(user)
+    session.flush()
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=2))
+    session.commit()
+    return make_token(user_id=user.id, email=user.email, rol_id=2)
 
 
 @pytest.fixture
-def client_token() -> str:
-    """Token for CLIENT user (rol_id=4) — should be denied."""
-    return make_token(user_id=3, email="client@test.com", rol_id=4)
+def client_token(session: Session) -> str:
+    """Token for CLIENT user (rol_id=4) — should be denied. Actual user created in DB."""
+    from app.models.usuario_rol import UsuarioRol
+    now = datetime.now(timezone.utc).isoformat()
+    user = Usuario(
+        email="client@test.com", password_hash="hashed", nombre="Client", apellido="Test",
+        activo=True, fecha_creacion=now, fecha_actualizacion=now,
+    )
+    session.add(user)
+    session.flush()
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=4))
+    session.commit()
+    return make_token(user_id=user.id, email=user.email, rol_id=4)
 
 
 # --- Fixtures for test data ---

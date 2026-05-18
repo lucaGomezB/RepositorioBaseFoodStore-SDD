@@ -134,6 +134,27 @@ class UsuarioRepository(BaseRepository[Usuario]):
             return None
 
         user.eliminado_en = datetime.now(timezone.utc)
+        user.activo = False
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        return user
+
+    def restore(self, id: int) -> Usuario | None:
+        """Restore a soft-deleted user by clearing eliminado_en and reactivating.
+
+        Args:
+            id: User ID to restore.
+
+        Returns:
+            Updated Usuario instance, or None if not found.
+        """
+        user = self.get(id)
+        if user is None:
+            return None
+
+        user.eliminado_en = None
+        user.activo = True
         self.session.add(user)
         self.session.commit()
         self.session.refresh(user)

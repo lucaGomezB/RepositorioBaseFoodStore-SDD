@@ -398,6 +398,25 @@ def eliminar_usuario(
     return {"message": "Usuario eliminado"}
 
 
+@users_router.patch("/usuarios/{usuario_id}/restaurar", response_model=UsuarioRead)
+def restaurar_usuario(
+    usuario_id: int,
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(require_roles(Role.ADMIN)),
+):
+    """Restore a soft-deleted user by clearing eliminado_en and reactivating."""
+    with UnitOfWork(session) as uow:
+        repo = UsuarioRepository(uow.session)
+        user = repo.restore(usuario_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Usuario no encontrado",
+            )
+
+    return user
+
+
 @users_router.put("/usuarios/{usuario_id}/role", response_model=UsuarioRead)
 def asignar_rol_usuario(
     usuario_id: int,
