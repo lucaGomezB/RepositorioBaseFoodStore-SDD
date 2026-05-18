@@ -2,6 +2,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { AuthUser } from '../api/httpClient';
+import { useCartStore } from './cartStore';
 
 interface AuthState {
   user: AuthUser | null;
@@ -27,8 +28,11 @@ export const useAuthStore = create<AuthStore>()(
         set({ user, isLoggedIn: true });
       },
 
-      logout: () =>
-        set({ user: null, isLoggedIn: false }),
+      logout: () => {
+        // Clear cart when user logs out (cart is per-user, not shared across sessions)
+        useCartStore.getState().clearCart();
+        set({ user: null, isLoggedIn: false });
+      },
 
       updateUser: (user) =>
         set({ user }),
