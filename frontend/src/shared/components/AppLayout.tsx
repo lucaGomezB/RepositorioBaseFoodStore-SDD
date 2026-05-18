@@ -1,14 +1,26 @@
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { useCartStore, selectCartItemCount } from '../stores/cartStore';
 import { useUIStore } from '../stores/uiStore';
+import { apiLogout } from '../api/httpClient';
 import Sidebar from './Sidebar';
 import { CartDrawer } from '@/features/cart/components/CartDrawer';
 
 export default function AppLayout() {
+  const navigate = useNavigate();
   const { user, isLoggedIn, logout } = useAuthStore();
   const itemCount = useCartStore(selectCartItemCount);
   const toggleCartDrawer = useUIStore((s) => s.toggleCartDrawer);
+
+  const handleLogout = async () => {
+    try {
+      await apiLogout(); // Revoca refresh token + limpia cookies httpOnly
+    } catch {
+      // Si el logout falla (ej: token ya expirado), igual limpiamos estado local
+    }
+    logout(); // Limpia estado local + carrito
+    navigate('/login', { replace: true });
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -46,7 +58,7 @@ export default function AppLayout() {
                   {user.nombre} {user.apellido}
                 </span>
                 <button
-                  onClick={logout}
+                  onClick={handleLogout}
                   className="text-sm text-red-600 hover:text-red-800 font-medium transition-colors cursor-pointer"
                 >
                   Cerrar Sesión
