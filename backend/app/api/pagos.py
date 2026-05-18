@@ -9,6 +9,7 @@ from app.core.auth.authorization import require_roles
 from app.core.auth.roles import Role
 from app.domain.pagos.schemas import (
     PagoCreateRequest,
+    PagoMockRequest,
     PagoRead,
 )
 from app.domain.pagos.service import PagoService
@@ -46,6 +47,34 @@ def crear_pago(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al crear pago: {str(e)}",
+        )
+
+
+@router.post("/mock", response_model=PagoRead, status_code=status.HTTP_201_CREATED)
+def crear_pago_mock(
+    data: PagoMockRequest,
+    session: Session = Depends(get_db),
+    current_user: TokenPayload = Depends(require_roles(Role.CLIENT, Role.ADMIN)),
+):
+    """Create a mock payment for an order (no MercadoPago).
+
+    Immediately approves the payment and transitions the order to
+    CONFIRMADO. Useful for development/testing without real payments.
+    """
+    try:
+        with UnitOfWork(session) as uow:
+            pago = PagoService.crear_pago_mock(
+                uow=uow,
+                pedido_id=data.pedido_id,
+                usuario_id=current_user.user_id,
+            )
+        return pago
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al crear pago mock: {str(e)}",
         )
 
 

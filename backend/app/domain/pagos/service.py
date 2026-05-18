@@ -185,6 +185,89 @@ class PagoService:
         return pago
 
     # ------------------------------------------------------------------
+    # Create mock payment (no MercadoPago)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def crear_pago_mock(
+        uow: "UnitOfWork",
+        pedido_id: int,
+        usuario_id: int,
+    ) -> Pago:
+        """Create a mock payment without calling MercadoPago.
+
+        Immediately approves the payment and transitions the order
+        to CONFIRMADO. Useful for development/testing.
+
+        Steps:
+        1. Validate the order exists and belongs to the user
+        2. Validate the order is in PENDIENTE state
+        3. Generate mock IDs and create the Pago record
+        4. Transition the order to CONFIRMADO
+
+        Args:
+            uow: Unit of Work transaction wrapper.
+            pedido_id: Order ID to pay for.
+            usuario_id: Current user ID.
+
+        Returns:
+            The created Pago record.
+
+        Raises:
+            HTTPException: 404 if order not found.
+            HTTPException: 409 if order is not in PENDIENTE state.
+        """
+        # Step 1: Validate order exists
+        pedido = uow.session.get(Pedido, pedido_id)
+        if not pedido:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pedido no encontrado",
+            )
+
+        # Step 1b: Ownership check
+        if pedido.usuario_id != usuario_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Pedido no encontrado",
+            )
+
+        # Step 2: Validate order state
+        if pedido.estado_codigo != "PENDIENTE":
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"El pedido no está en estado PENDIENTE (actual: {pedido.estado_codigo})",
+            )
+
+        # Step 3: Generate mock identifiers
+        mp_payment_id = f"MOCK-{uuid4().hex[:8]}"
+        external_reference = f"MOCK-{pedido_id}-{uuid4().hex[:8]}"
+        idempotency_key = str(uuid4())
+
+        # Step 4: Create Pago record (immediately approved)
+        pago = Pago(
+            pedido_id=pedido_id,
+            mp_payment_id=mp_payment_id,
+            mp_status="approved",
+            external_reference=external_reference,
+            idempotency_key=idempotency_key,
+            status_detail="mock_accredited",
+        )
+        uow.session.add(pago)
+        uow.session.flush()
+        uow.session.refresh(pago)
+
+        # Step 5: Transition order to CONFIRMADO
+        PedidoService.transicionar_estado(
+            uow,
+            pedido_id,
+            "CONFIRMADO",
+            usuario_id=usuario_id,
+            motivo="Pago mock aprobado",
+        )
+
+        return pago
+
+    # ------------------------------------------------------------------
     # Get payment by order
     # ------------------------------------------------------------------
     @staticmethod

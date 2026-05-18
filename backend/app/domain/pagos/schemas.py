@@ -64,6 +64,21 @@ class PagoWebhookRequest(BaseModel):
     }
 
 
+class PagoMockRequest(BaseModel):
+    """Request schema for mock payment creation.
+
+    No MercadoPago involved — the payment is immediately approved.
+    """
+    pedido_id: int
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "pedido_id": 1,
+            },
+        },
+    }
+
+
 class PagoStatusResponse(BaseModel):
     """Simplified payment status response."""
     mp_status: str

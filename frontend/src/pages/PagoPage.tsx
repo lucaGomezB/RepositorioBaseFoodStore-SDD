@@ -1,10 +1,10 @@
 // PagoPage — Mock payment page with card form and geolocation
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { httpClient } from '@/shared/api/httpClient';
 import { useCartStore, selectCartItems, selectCartTotal } from '@/shared/stores/cartStore';
-import { useDirecciones } from '@/entities/address';
+import { useDirecciones, useCreateDireccion } from '@/entities/address';
 
 interface CrearPedidoPayload {
   items: Array<{
@@ -43,10 +43,10 @@ function validarTarjeta(form: CardForm): FormErrors {
     errors.nombre = 'El nombre del titular es obligatorio';
   }
 
-  // Card number: remove non-digits, must be exactly 36 digits
+  // Card number: remove non-digits, must be exactly 16 digits
   const digitos = form.numero.replace(/\D/g, '');
-  if (digitos.length !== 36) {
-    errors.numero = 'El número de tarjeta debe tener exactamente 36 dígitos';
+  if (digitos.length !== 16) {
+    errors.numero = 'El número de tarjeta debe tener exactamente 16 dígitos';
   }
 
   // Expiry: MM/YY format, must be future
@@ -74,6 +74,91 @@ function validarTarjeta(form: CardForm): FormErrors {
   return errors;
 }
 
+// ---------------------------------------------------------------------------
+// Inline address creation form (shared between empty / has-addresses states)
+// ---------------------------------------------------------------------------
+function AddressInlineForm({
+  values,
+  onChange,
+  onSave,
+  isSaving,
+}: {
+  values: {
+    calle: string;
+    numero: string;
+    piso_depto: string;
+    ciudad: string;
+    codigo_postal: string;
+  };
+  onChange: (v: typeof values) => void;
+  onSave: () => Promise<void>;
+  isSaving: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="sm:col-span-2">
+        <label className="block text-xs font-medium mb-1">Calle</label>
+        <input
+          type="text"
+          value={values.calle}
+          onChange={(e) => onChange({ ...values, calle: e.target.value })}
+          className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">Número</label>
+        <input
+          type="text"
+          value={values.numero}
+          onChange={(e) => onChange({ ...values, numero: e.target.value })}
+          className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">
+          Piso/Depto (opcional)
+        </label>
+        <input
+          type="text"
+          value={values.piso_depto}
+          onChange={(e) => onChange({ ...values, piso_depto: e.target.value })}
+          className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">Ciudad</label>
+        <input
+          type="text"
+          value={values.ciudad}
+          onChange={(e) => onChange({ ...values, ciudad: e.target.value })}
+          className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-medium mb-1">Código Postal</label>
+        <input
+          type="text"
+          value={values.codigo_postal}
+          onChange={(e) => onChange({ ...values, codigo_postal: e.target.value })}
+          className="w-full border border-gray-300 px-2 py-1.5 rounded text-sm"
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={
+            isSaving || !values.calle.trim() || !values.numero.trim() || !values.ciudad.trim() || !values.codigo_postal.trim()
+          }
+          className="w-full bg-blue-600 text-white py-2 rounded text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isSaving ? 'Guardando...' : 'Guardar dirección'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PagoPage() {
   const navigate = useNavigate();
   const items = useCartStore(selectCartItems);
@@ -93,6 +178,22 @@ export default function PagoPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [ubicacion, setUbicacion] = useState<{ lat: number; lng: number } | null>(null);
   const [ubicacionError, setUbicacionError] = useState<string | null>(null);
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const queryClient = useQueryClient();
+  const createDireccion = useCreateDireccion();
+  const [newAddress, setNewAddress] = useState<{
+    calle: string;
+    numero: string;
+    piso_depto: string;
+    ciudad: string;
+    codigo_postal: string;
+  }>({
+    calle: '',
+    numero: '',
+    piso_depto: '',
+    ciudad: '',
+    codigo_postal: '',
+  });
 
   // Get geolocation on mount
   useEffect(() => {
@@ -120,21 +221,39 @@ export default function PagoPage() {
       const { data } = await httpClient.post<{ id: number }>('/pedidos/', payload);
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      try {
+        // Call mock payment endpoint so the confirmation page can find a Pago
+        await httpClient.post('/pagos/mock', { pedido_id: data.id });
+      } catch {
+        // Mock payment might fail, but we still want to proceed
+        console.warn('Mock payment warning');
+      }
       clearCart();
       navigate(`/pedidos/${data.id}/confirmacion`);
     },
     onError: (err: unknown) => {
-      const msg =
-        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
-        (err as Error).message ||
-        'Error al crear el pedido';
-      setSubmitError(msg);
+      const axiosError = err as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+        code?: string;
+      };
+      if (axiosError?.response) {
+        // Server responded with error detail
+        const detail = axiosError.response.data?.detail;
+        setSubmitError(detail || 'Error del servidor');
+      } else if (axiosError?.message) {
+        // Network error — no response received
+        setSubmitError(`Error de conexión: ${axiosError.message}`);
+      } else {
+        setSubmitError('Error al crear el pedido');
+      }
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setErrors({});
     setSubmitError(null);
 
     // Validate address
@@ -150,17 +269,7 @@ export default function PagoPage() {
       return;
     }
 
-    // Check geolocation
-    if (!ubicacion) {
-      setErrors({
-        ubicacion: 'Esperando la ubicación... Asegurate de permitir el acceso.',
-      });
-      return;
-    }
-
-    setErrors({});
-
-    // Build payload and create order
+    // Build payload and create order — geolocation is optional
     const payload: CrearPedidoPayload = {
       items: items.map((item) => ({
         producto_id: item.productoId,
@@ -169,23 +278,27 @@ export default function PagoPage() {
       })),
       direccion_id: direccionId,
       forma_pago_codigo: 'EFECTIVO',
-      latitud: ubicacion.lat,
-      longitud: ubicacion.lng,
+      ...(ubicacion ? { latitud: ubicacion.lat, longitud: ubicacion.lng } : {}),
     };
 
     createOrder.mutateAsync(payload).catch(() => {});
   };
 
   const formatCardNumber = (value: string): string => {
-    // Only allow digits, max 36
-    const digits = value.replace(/\D/g, '').slice(0, 36);
+    // Only allow digits, max 16
+    const digits = value.replace(/\D/g, '').slice(0, 16);
     // Group in blocks of 4 for readability
     return digits.replace(/(.{4})/g, '$1 ').trim();
   };
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty (must be in useEffect, not render)
+  useEffect(() => {
+    if (items.length === 0) {
+      navigate('/', { replace: true });
+    }
+  }, [items.length, navigate]);
+
   if (items.length === 0) {
-    navigate('/', { replace: true });
     return null;
   }
 
@@ -228,33 +341,75 @@ export default function PagoPage() {
             <p className="text-sm text-gray-500">Cargando direcciones...</p>
           ) : !direcciones || direcciones.length === 0 ? (
             <div>
-              <p className="text-sm text-red-600 mb-2">
-                No tenés direcciones guardadas.
+              <p className="text-sm text-amber-600 mb-3">
+                No tenés direcciones guardadas. Agregá una para continuar.
               </p>
-              <button
-                type="button"
-                onClick={() => navigate('/direcciones')}
-                className="text-sm text-blue-600 underline cursor-pointer"
-              >
-                Agregar una dirección
-              </button>
+              <AddressInlineForm
+                values={newAddress}
+                onChange={setNewAddress}
+                onSave={async () => {
+                  const result = await createDireccion.mutateAsync(newAddress);
+                  setDireccionId(result.id);
+                  setNewAddress({
+                    calle: '',
+                    numero: '',
+                    piso_depto: '',
+                    ciudad: '',
+                    codigo_postal: '',
+                  });
+                  queryClient.invalidateQueries({ queryKey: ['direcciones'] });
+                }}
+                isSaving={createDireccion.isPending}
+              />
             </div>
           ) : (
-            <select
-              value={direccionId || ''}
-              onChange={(e) => setDireccionId(Number(e.target.value))}
-              className={`w-full border px-3 py-2 rounded ${errors.direccion ? 'border-red-500' : 'border-gray-300'}`}
-            >
-              <option value="">Seleccionar dirección...</option>
-              {direcciones.map((d) => (
-                <option key={d.id} value={d.id}>
-                  {d.calle} {d.numero}
-                  {d.piso_depto ? `, ${d.piso_depto}` : ''} — {d.ciudad} (
-                  {d.codigo_postal})
-                  {d.es_predeterminada ? ' ★' : ''}
-                </option>
-              ))}
-            </select>
+            <>
+              <select
+                value={direccionId || ''}
+                onChange={(e) => setDireccionId(Number(e.target.value))}
+                className={`w-full border px-3 py-2 rounded ${errors.direccion ? 'border-red-500' : 'border-gray-300'}`}
+              >
+                <option value="">Seleccionar dirección...</option>
+                {direcciones.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.calle} {d.numero}
+                    {d.piso_depto ? `, ${d.piso_depto}` : ''} — {d.ciudad} (
+                    {d.codigo_postal})
+                    {d.es_predeterminada ? ' ★' : ''}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => setShowAddressForm(!showAddressForm)}
+                className="mt-2 text-sm text-blue-600 hover:text-blue-800 underline cursor-pointer"
+              >
+                {showAddressForm ? 'Cancelar' : '+ Agregar nueva dirección'}
+              </button>
+              {showAddressForm && (
+                <div className="mt-3 p-3 border border-gray-200 rounded-lg bg-gray-50">
+                  <h3 className="text-sm font-medium mb-2">Nueva dirección</h3>
+                  <AddressInlineForm
+                    values={newAddress}
+                    onChange={setNewAddress}
+                    onSave={async () => {
+                      const result = await createDireccion.mutateAsync(newAddress);
+                      setDireccionId(result.id);
+                      setShowAddressForm(false);
+                      setNewAddress({
+                        calle: '',
+                        numero: '',
+                        piso_depto: '',
+                        ciudad: '',
+                        codigo_postal: '',
+                      });
+                      queryClient.invalidateQueries({ queryKey: ['direcciones'] });
+                    }}
+                    isSaving={createDireccion.isPending}
+                  />
+                </div>
+              )}
+            </>
           )}
           {errors.direccion && (
             <p className="text-red-500 text-xs mt-1">{errors.direccion}</p>
@@ -301,8 +456,8 @@ export default function PagoPage() {
                   }))
                 }
                 className={`w-full border px-3 py-2 rounded font-mono ${errors.numero ? 'border-red-500' : 'border-gray-300'}`}
-                placeholder="1234 5678 9012 3456 7890 1234 5678 9012 3456"
-                maxLength={44}
+                placeholder="1234 5678 9012 3456"
+                maxLength={19}
               />
               {errors.numero && (
                 <p className="text-red-500 text-xs mt-1">{errors.numero}</p>

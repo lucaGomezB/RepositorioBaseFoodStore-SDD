@@ -17,6 +17,7 @@ import MisPedidosPage from '../pages/MisPedidosPage';
 import PedidoDetailPage from '../pages/PedidoDetailPage';
 import PanelPedidosPage from '../pages/PanelPedidosPage';
 import CheckoutPage from '../pages/CheckoutPage';
+import PagoPage from '../pages/PagoPage';
 import OrderConfirmationPage from '../pages/OrderConfirmationPage';
 import MetricasPage from '../pages/MetricasPage';
 import StockPage from '../pages/StockPage';
@@ -59,6 +60,7 @@ export const routes: RouteObject[] = [
           { path: 'direcciones', element: <DireccionesPage /> },
           { path: 'carrito', element: <CartPage /> },
           { path: 'checkout', element: <CheckoutPage /> },
+          { path: 'pago', element: <PagoPage /> },
           { path: 'pedidos/:id/confirmacion', element: <OrderConfirmationPage /> },
           { path: 'perfil', element: <ProfilePage /> },
           { path: 'mis-pedidos', element: <MisPedidosPage /> },
