@@ -1,5 +1,14 @@
 // CatalogFilters — Search input and category select with debounce support
+import { useQuery } from '@tanstack/react-query';
+import { httpClient } from '@/shared/api/httpClient';
 import type { ChangeEvent } from 'react';
+
+interface CategoriaTree {
+  id: number;
+  nombre: string;
+  parent_id: number | null;
+  subcategorias: CategoriaTree[];
+}
 
 interface CatalogFiltersProps {
   busqueda: string;
@@ -9,14 +18,17 @@ interface CatalogFiltersProps {
   onReset: () => void;
 }
 
-/** Hardcoded categories for the catalog filter dropdown */
-const CATEGORIAS = [
-  { id: 1, nombre: 'Pizzas' },
-  { id: 2, nombre: 'Hamburguesas' },
-  { id: 3, nombre: 'Bebidas' },
-  { id: 4, nombre: 'Postres' },
-  { id: 5, nombre: 'Ensaladas' },
-];
+/** Flatten a category tree into a flat list of root categories with indent labels for subcats */
+function flattenTree(cats: CategoriaTree[], depth = 0): { id: number; label: string }[] {
+  const result: { id: number; label: string }[] = [];
+  for (const cat of cats) {
+    result.push({ id: cat.id, label: cat.nombre });
+    if (cat.subcategorias && cat.subcategorias.length > 0) {
+      result.push(...flattenTree(cat.subcategorias, depth + 1));
+    }
+  }
+  return result;
+}
 
 export function CatalogFilters({
   busqueda,
@@ -26,6 +38,14 @@ export function CatalogFilters({
   onReset,
 }: CatalogFiltersProps) {
   const hasActiveFilters = busqueda !== '' || categoria_id !== undefined;
+
+  const { data: categorias } = useQuery({
+    queryKey: ['categorias-tree'],
+    queryFn: async () => {
+      const { data } = await httpClient.get<CategoriaTree[]>('/categorias/');
+      return flattenTree(data);
+    },
+  });
 
   return (
     <div className="flex flex-wrap gap-4 items-center mb-6">
@@ -56,9 +76,9 @@ export function CatalogFilters({
         className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-white"
       >
         <option value="">Todas las categorías</option>
-        {CATEGORIAS.map((cat) => (
+        {(categorias ?? []).map((cat) => (
           <option key={cat.id} value={cat.id}>
-            {cat.nombre}
+            {cat.label}
           </option>
         ))}
       </select>
