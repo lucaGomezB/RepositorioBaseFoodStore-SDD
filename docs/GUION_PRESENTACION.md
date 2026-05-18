@@ -1,232 +1,155 @@
-# Guion de Presentacion — Food Store v5.0
+# Guion de Presentacion — Food Store
 
-**Duracion estimada**: 8-12 minutos
-**Formato**: Demostracion en vivo + pantallazos de codigo
+**Duracion estimada**: 7 minutos
+**Formato**: Demostracion en vivo desde el frontend
 
 ---
 
 ## Escena 1: Introduccion (30s)
 
-> Mostrar: Pantalla de inicio del proyecto, terminal con `openspec list`
+> Mostrar: `http://localhost:5173` — Home page con catalogo de productos
 
-"Bienvenidos a Food Store, un sistema de e-commerce para gestion de pedidos de comida desarrollado con React, FastAPI y PostgreSQL. El proyecto sigue la metodologia Spec-Driven Development (SDD) con 39 cambios implementados y archivados desde la infraestructura base hasta el polish final. Actualmente contamos con 254 tests en backend, 81 tests en frontend, y una cobertura de codigo del 84%."
-
----
-
-## Escena 2: Arquitectura del Backend (2 min)
-
-> Mostrar: Estructura de directorios `backend/app/`
-
-### 2a. Capas y flujo de dependencias (1 min)
-
-"El backend sigue una arquitectura en capas con flujo unidireccional: Router → Service → Unit of Work → Repository → Model."
-
-```
-Router (HTTP) -> Service (logica) -> UoW (transaccion) -> Repository (datos) -> Model (SQLModel)
-```
-
-"Los routers son capa fina de HTTP, los services tienen la logica de negocio, el Unit of Work gestiona las transacciones atomicas, los repositorios acceden a datos, y los modelos definen las tablas."
-
-> Mostrar: `backend/app/api/pedidos.py` - codigo del router
-
-### 2b. Unit of Work en accion (1 min)
-
-> Mostrar: `backend/app/core/uow.py` y un endpoint que lo usa
-
-"Aqui vemos el Unit of Work en accion. Cada endpoint que escribe datos abre un contexto `with UnitOfWork(session) as uow:`. Al entrar, se inicia una transaccion. Al salir sin errores, se hace commit automatico. Si hay una excepcion, se hace rollback."
-
-```python
-@router.post("/", response_model=PedidoRead, status_code=201)
-def crear_pedido(data: CrearPedidoRequest, session: Session = Depends(get_db)):
-    try:
-        with UnitOfWork(session) as uow:
-            pedido = PedidoService.crear_pedido(uow, ...)
-        return pedido
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-```
-
-"Ningun service hace session.commit() directo — el UoW lo maneja."
-
-### 2c. Modulos por dominio (30s)
-
-> Mostrar: `backend/app/domain/` con sus subdirectorios
-
-"Los modulos estan organizados por dominio: auth, usuarios, productos, categorias, pedidos, pagos, direcciones, admin. Cada modulo contiene su service, repository (si aplica) y schemas. Los modelos SQLModel estan centralizados en `app/models/`."
+"Bienvenidos a **Food Store**, un sistema de e-commerce para gestion de pedidos de comida. Usa **React + TypeScript** en el frontend, **FastAPI + PostgreSQL** en el backend. Todo el proyecto se desarrollo con **Spec-Driven Development**: primero la especificacion, despues el codigo. Actualmente tenemos **254 tests en backend, 80 en frontend**, y **cobertura del 84%**."
 
 ---
 
-## Escena 3: Modelo de Datos (1 min)
+## Escena 2: Demo Cliente — Catálogo y Carrito (1 min)
 
-> Mostrar: `backend/app/models/pedido.py` y `detalle_pedido.py`
+> Mostrar: Navegando el catálogo, filtrando por categoría, buscando
 
-"El modelo de datos sigue Tercera Forma Normal con 16 tablas. Aplicamos patrones como:"
+### 2a. Catálogo público (30s)
 
-- **Soft delete**: campo `eliminado_en` en lugar de DELETE fisico
-- **Snapshots**: `nombre_snapshot` y `precio_snapshot` en DetallePedido preservan valores historicos
-- **Precision Decimal**: todos los precios usan `Numeric(10,2)` — jamas float
+"El catálogo es público, no requiere login. Los productos se cargan con **skeleton loaders** y se pueden filtrar por categoría o buscar por nombre. La paginación es 1-based con paginado numérico."
 
-```python
-class DetallePedido(SQLModel, table=True):
-    nombre_snapshot: str = Field(max_length=255)
-    precio_snapshot: Decimal = Field(sa_column=Column(Numeric(10, 2)))
-    subtotal: Decimal = Field(sa_column=Column(Numeric(10, 2)))
-```
+> Mostrar: Agregar producto al carrito, abrir carrito, ver exclusiones de ingredientes
+
+### 2b. Carrito de compras (30s)
+
+"El carrito es **client-side con Zustand** y persiste en localStorage. Cada producto permite personalizar ingredientes (exclusiones) y el total se calcula en tiempo real. La sesión del carrito sobrevive a recargas y cierres del navegador."
 
 ---
 
-## Escena 4: Maquina de Estados - Pedidos (1 min)
+## Escena 3: Demo Autenticación (1 min)
 
-> Mostrar: `backend/app/domain/pedidos/service.py` - TRANSICIONES
+> Mostrar: Login en `/login` con credenciales admin@foodstore.com / admin123
 
-"Los pedidos siguen una maquina de estados finitos con 6 estados y transiciones estrictamente controladas."
+### 3a. Login con httpOnly cookies (30s)
 
-```
-PENDIENTE -> CONFIRMADO -> EN_PREPARACION -> EN_CAMINO -> ENTREGADO
-    |             |              |
-    +-> CANCELADO +-> CANCELADO  +-> CANCELADO (solo ADMIN)
-```
+"El login usa **httpOnly cookies** — los tokens JWT nunca son accesibles desde JavaScript, lo que previene robo de tokens por XSS. Al recargar la página, la sesión se restaura automáticamente vía `GET /auth/me`."
 
-"Cada transicion se valida contra el mapa de transiciones permitidas. Los estados ENTREGADO y CANCELADO son terminales. El historial de cambios es append-only: solo INSERT, nunca UPDATE ni DELETE."
+> Mostrar: Sidebar filtrado por rol (admin ve todo)
 
-> Mostrar: Transicion CONFIRMADO a EN_PREPARACION con restauracion de stock al cancelar
+### 3b. Menú por rol y M2M (30s)
+
+"El sidebar se filtra según los **roles del usuario**. Un usuario puede tener múltiples roles simultáneamente gracias a la tabla pivote `UsuarioRol`. El menú muestra solo las opciones permitidas para los roles del usuario logueado."
 
 ---
 
-## Escena 5: Autenticacion y RBAC (1 min)
+## Escena 4: Demo Funcionalidades del Cliente (1 min 30s)
 
-> Mostrar: `backend/app/core/auth/` y un endpoint protegido
+> Mostrar: Navegar a `/mis-pedidos`
 
-"La autenticacion usa JWT con access token (30 min) y refresh token (7 dias) con rotacion. Al hacer logout, el refresh token se revoca en base de datos."
+### 4a. Mis pedidos (30s)
 
-"El control de acceso tiene 4 roles:"
+"Los clientes pueden ver sus pedidos con paginación, filtros por estado y fecha. Cada pedido muestra el detalle completo: items con snapshots de precio, historial de cambios de estado, dirección de entrega."
 
-| Rol | Permisos |
-|-----|----------|
-| ADMIN | CRUD completo, metricas, configuracion |
-| STOCK | Catalogo, productos, stock, ingredientes |
-| PEDIDOS | Ver y avanzar pedidos, historial |
-| CLIENT | Catalogo, carrito, mis pedidos |
+> Mostrar: `/direcciones` — agregar y editar dirección
 
-> Mostrar: `require_roles([Role.ADMIN, Role.STOCK])` en un endpoint
+### 4b. Direcciones de entrega (30s)
 
-"El rate limiting en login protege contra fuerza bruta: maximo 5 intentos por IP cada 15 minutos."
+"La sección **Mis Direcciones** permite CRUD completo: crear, editar, eliminar y establecer una dirección como predeterminada. La primera dirección se marca automáticamente como predeterminada."
 
----
+> Mostrar: Agregar producto al carrito, ir a checkout
 
-## Escena 6: Frontend - Feature-Sliced Design (1 min)
+### 4c. Checkout y pago (30s)
 
-> Mostrar: `frontend/src/` estructura FSD
-
-"El frontend sigue Feature-Sliced Design con 5 capas: app, pages, features, entities, shared. Los imports fluyen de arriba hacia abajo."
-
-### Zustand stores (30s)
-
-> Mostrar: `frontend/src/shared/stores/`
-
-"El estado del cliente se gestiona con 4 stores de Zustand:"
-
-| Store | Estado | Persiste |
-|-------|--------|----------|
-| authStore | tokens JWT, usuario | localStorage |
-| cartStore | items del carrito | localStorage |
-| paymentStore | estado del pago | no |
-| uiStore | modales, sidebar | no |
-
-"El estado del servidor se maneja exclusivamente con TanStack Query. Nunca se mezclan ambos tipos de estado."
+"Al hacer checkout, el pedido se crea en una **transacción atómica** usando Unit of Work: se validan stocks, se toman snapshots de precios y dirección, se registra el historial inicial. Si algo falla, nada persiste. El pago se integra con MercadoPago."
 
 ---
 
-## Escena 7: Funcionalidades Cliente (1 min 30s)
+## Escena 5: Demo Panel de Administración (1 min 30s)
 
-> Mostrar: Pantallazos de la aplicacion funcionando
+> Mostrar: `/metricas` — Dashboard con KPIs y gráficos
 
-### 7a. Catalogo de productos (30s)
+### 5a. Dashboard (30s)
 
-"El catalogo publico muestra productos con disponibilidad, filtro por categoria y busqueda por nombre. Incluye skeleton loaders mientras carga y paginacion."
+"El panel administrativo tiene un dashboard con KPIs en tiempo real: total de ventas, pedidos por estado, productos más vendidos, usando **Recharts** para los gráficos."
 
-### 7b. Carrito de compras (30s)
+> Mostrar: `/productos` — listado y edición, `/categorias`, `/ingredientes`
 
-"El carrito es client-side con persistencia en localStorage. Permite agregar/quitar items, personalizar ingredientes, y muestra subtotales en tiempo real."
+### 5b. Gestión de productos (30s)
 
-### 7c. Creacion de pedido (30s)
+"Catálogo completo: productos con categorías (jerárquicas) e ingredientes (con alérgenos). Stock actualizable desde la misma lista."
 
-"Al crear un pedido, todo ocurre en una sola transaccion atomica: se validan stocks, se toman snapshots de precios, se calculan totales, y se registra la transicion inicial en el historial. Si algo falla, nada persiste."
+> Mostrar: `/usuarios` — modal de roles con checkboxes
 
----
+### 5c. Usuarios y roles M2M (30s)
 
-## Escena 8: Panel de Administracion (1 min)
+"La gestión de usuarios permite **asignar múltiples roles** mediante checkboxes: se pueden agregar o remover roles individualmente. Implementa **RN-RB04**: un ADMIN no puede auto-desasignarse si es el último administrador del sistema."
 
-> Mostrar: Pantallazos del admin
+> Mostrar: `/panel-pedidos` — lista de pedidos, avanzar estado
 
-"El panel de administracion incluye:"
+### 5d. Gestión de pedidos (adicional si hay tiempo)
 
-- **Dashboard**: KPIs, graficos de ventas con recharts, distribucion de pedidos
-- **Productos**: CRUD completo con categorias e ingredientes
-- **Pedidos**: Vista de todos los pedidos, transiciones de estado, cancelaciones
-- **Usuarios**: CRUD con asignacion de roles RBAC
-- **Stock**: Vista de productos con stock bajo, actualizacion masiva
+"Los gestores pueden ver todos los pedidos, avanzarlos por la máquina de estados finitos (PENDIENTE → CONFIRMADO → EN_PREPARACION → EN_CAMINO → ENTREGADO), con validación de transiciones y restauración de stock al cancelar."
 
 ---
 
-## Escena 9: Testing y Documentacion (1 min)
+## Escena 6: Testing y Documentación (30s)
 
-> Mostrar: Terminal ejecutando tests
+> Mostrar: Terminal con `pytest` (254 passed) y `npx vitest run` (80 passed)
 
-### Backend
-
-```bash
-cd backend
-pytest  # 254 tests, 0 failures
-pytest --cov=app --cov-report=html  # cobertura 84%
-```
-
-### Frontend
-
-```bash
-cd frontend
-npx vitest run  # 81 tests, 10 test files
-npx tsc --noEmit  # TypeScript clean
-npm run build  # build exitoso
-```
-
-### Documentacion API
-
-> Mostrar: Navegador en http://localhost:8000/docs
-
-"La API esta documentada via OpenAPI/Swagger en /docs y ReDoc en /redoc. Todos los endpoints tienen response_model, description, status_code explicito y ejemplos en los schemas."
+"**254 tests backend** con pytest, **80 tests frontend** con Vitest + Testing Library. TypeScript compila con **cero errores**. La API está documentada via **OpenAPI/Swagger** en `/docs` con ejemplos en todos los schemas."
 
 ---
 
-## Escena 10: Cierre (30s)
+## Escena 7: Puntos a Mejorar (30s)
 
-"Food Store v5.0 implementa los 39 cambios planificados con 254 tests backend, 81 tests frontend, 84% de cobertura, y una arquitectura en capas con Unit of Work, precios Decimal y modulos por dominio.
+> Mostrar: Pantalla en blanco o slide de cierre
 
-El codigo fuente esta disponible en el repositorio publico con instrucciones de setup en el README."
+"**Para una versión futura, los puntos a mejorar serían:**
 
----
-
-## Checklist de pantallazos (CE-12)
-
-1. `backend/app/api/` — Routers HTTP
-2. `backend/app/domain/` — Modulos feature-first
-3. `backend/app/core/uow.py` — Unit of Work en accion
-4. `backend/app/models/` — Modelo con Decimal y snapshots
-5. Catalogo de productos (frontend)
-6. Carrito de compras con items
-7. Detalle de pedido con historial de estados
-8. Panel admin - Dashboard con graficos
-9. Swagger UI en /docs
-10. Terminal con `pytest` (254 passed)
+- **Registro de usuarios**: el endpoint `POST /auth/register` ya existe, pero falta la página de registro en el frontend
+- **Notificaciones en tiempo real**: webhooks o Server-Sent Events para actualizar el estado de pedidos sin recargar
+- **Perfil de usuario**: la página de perfil permite editar datos, pero falta cambio de contraseña con confirmación
+- **Responsive mobile**: la UI funciona en desktop, la adaptación mobile está incompleta
+- **Internacionalización**: toda la UI está en español; agregar i18n para soporte multi-idioma"
 
 ---
 
-## Notas para la grabacion
+## Resumen de métricas
 
-- Usar `git log --oneline --reverse` para mostrar el historial de 39 changes
-- Para el backend, tener `uvicorn app.main:app` corriendo
-- Para el frontend, tener `npm run dev` corriendo
-- Tener datos de seed cargados (productos, categorias, ingredientes)
-- Tener un par de pedidos creados para mostrar el historial de estados
-- Tener un usuario admin y un cliente creados para mostrar RBAC
-- Las tarjetas de prueba de MercadoPago estan en docs/Integrador.txt seccion 8.3
+| Métrica | Valor |
+|---------|-------|
+| Tests backend | 254 |
+| Tests frontend | 80 |
+| Cobertura | 84% |
+| Roles | 4 (M2M) |
+| Tablas | 16 + pivote |
+| Cambios archivados | 40+ |
+
+---
+
+## Checklist de demostración
+
+1. Home — catálogo con filtros y skeleton loaders
+2. Login con httpOnly cookies + sidebar por rol
+3. Carrito con exclusión de ingredientes
+4. Mis pedidos — detalle con historial de estados
+5. Direcciones — CRUD completo
+6. Admin Dashboard — KPIs y gráficos
+7. Productos — CRUD con categorías e ingredientes
+8. Usuarios — asignación multi-rol con checkboxes
+9. Panel de pedidos — transiciones de estado
+10. Terminal — tests backend + frontend
+
+---
+
+## Notas técnicas
+
+- Tener backend corriendo: `cd backend && .venv\Scripts\python -m uvicorn app.main:app --reload`
+- Tener frontend corriendo: `cd frontend && npm run dev`
+- Admin: `admin@foodstore.com` / `admin123`
+- Stock: `stock@foodstore.com` . `stock123`
+- Seed data cargada (10 productos, 10 categorías, 12 ingredientes)
+- MercadoPago en modo test (tarjetas de prueba en docs/Integrador.txt sección 8.3)

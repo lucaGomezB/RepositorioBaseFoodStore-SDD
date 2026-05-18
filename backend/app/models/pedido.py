@@ -35,6 +35,10 @@ class Pedido(SQLModel, table=True):
     direccion_ciudad: str = Field(max_length=100)
     direccion_cp: str = Field(max_length=20)
 
+    # Geolocation (captured at checkout)
+    latitud: Optional[float] = Field(default=None, nullable=True)
+    longitud: Optional[float] = Field(default=None, nullable=True)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

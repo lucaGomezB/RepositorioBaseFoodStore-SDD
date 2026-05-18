@@ -33,6 +33,9 @@ class CrearPedidoRequest(SQLModel):
     """Schema for creating a new order."""
     items: list[ItemPedidoRequest]
     forma_pago_codigo: Optional[str] = None
+    # Geolocation captured at payment
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
     direccion_id: int
 
     @field_validator("items")
@@ -162,6 +165,9 @@ class PedidoDetail(PedidoRead):
     direccion_piso: Optional[str] = None
     direccion_ciudad: str
     direccion_cp: str
+    # Geolocation captured at checkout
+    latitud: Optional[float] = None
+    longitud: Optional[float] = None
     detalles: list[DetallePedidoRead] = []
     historial_estados: list[HistorialEstadoRead] = []
     model_config = ConfigDict(

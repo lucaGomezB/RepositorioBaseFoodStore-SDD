@@ -136,6 +136,8 @@ class PedidoService:
             direccion_piso=direccion.piso_depto,
             direccion_ciudad=direccion.ciudad,
             direccion_cp=direccion.codigo_postal,
+            latitud=data.get("latitud"),
+            longitud=data.get("longitud"),
             created_at=now,
             updated_at=now,
         )

@@ -32,7 +32,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         """Get a valid (non-revoked, non-expired) refresh token."""
         statement = select(RefreshToken).where(
             RefreshToken.token == token,
-            not RefreshToken.revoked
+            RefreshToken.revoked == False,
         )
         result = self.session.exec(statement).first()
 
@@ -64,7 +64,7 @@ class RefreshTokenRepository(BaseRepository[RefreshToken]):
         """Revoke all refresh tokens for a user."""
         statement = select(RefreshToken).where(
             RefreshToken.user_id == user_id,
-            not RefreshToken.revoked
+            RefreshToken.revoked == False,
         )
         tokens = list(self.session.exec(statement))
 
