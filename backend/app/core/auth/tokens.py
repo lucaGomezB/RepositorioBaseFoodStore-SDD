@@ -11,7 +11,7 @@ def create_access_token(data: Dict[str, Any], expires_delta: Optional[timedelta]
     Create a JWT access token.
     
     Args:
-        data: Dictionary with user data to encode (user_id, email, rol_id)
+        data: Dictionary with user data to encode (user_id, email, roles)
         expires_delta: Optional custom expiration (default: 15 minutes)
         
     Returns:

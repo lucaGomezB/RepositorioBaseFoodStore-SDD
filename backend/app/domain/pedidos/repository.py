@@ -2,7 +2,7 @@
 from typing import List, Optional, Tuple
 from datetime import datetime
 from sqlmodel import Session, select, func
-from sqlalchemy import text, or_
+from sqlalchemy import or_
 from sqlalchemy.orm import joinedload
 
 from app.core.repositories.base import BaseRepository

@@ -39,7 +39,9 @@ def require_roles(*allowed_roles: Role):
     allowed_ids = {role.value for role in allowed_roles}
 
     def _check_role(current_user: TokenPayload = Depends(get_current_user)) -> TokenPayload:
-        if current_user.rol_id not in allowed_ids:
+        # Check if ANY of the user's roles intersect with allowed roles
+        user_role_ids = set(current_user.roles)
+        if not user_role_ids.intersection(allowed_ids):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Insufficient permissions",

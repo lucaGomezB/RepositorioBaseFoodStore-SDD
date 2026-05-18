@@ -2,7 +2,7 @@
 // New code should use the Axios-based httpClient from shared/api/httpClient.ts
 // which provides automatic JWT injection and token refresh on 401.
 
-const BASE_URL = "/api";
+const BASE_URL = "/api/v1";
 
 export async function apiFetch<T>(
   endpoint: string,

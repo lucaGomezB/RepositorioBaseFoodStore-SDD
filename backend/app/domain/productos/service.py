@@ -1,5 +1,5 @@
 # Producto Service
-from typing import Optional, List, TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
@@ -7,11 +7,7 @@ if TYPE_CHECKING:
     from app.core.uow import UnitOfWork
 
 from app.models.producto import Producto
-from app.models.categoria import Categoria
-from app.models.ingrediente import Ingrediente
 from app.domain.productos.repository import ProductoRepository
-from app.domain.categorias.repository import CategoriaRepository
-from app.domain.ingredientes.repository import IngredienteRepository
 
 
 def get_timestamp() -> str:

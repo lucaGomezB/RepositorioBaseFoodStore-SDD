@@ -61,6 +61,8 @@ def engine():
 def session(engine):
     """Create a clean session for each test with empty tables."""
     with Session(engine) as session:
+        from tests.conftest import seed_roles
+        seed_roles(session)
         session.exec(text("DELETE FROM refresh_tokens"))
         session.exec(text("DELETE FROM usuarios"))
         session.commit()
@@ -90,13 +92,15 @@ def client(session: Session):
 
 def create_user(session: Session, **overrides) -> Usuario:
     """Factory helper to create a Usuario row with sensible defaults."""
+    from app.models.usuario_rol import UsuarioRol
     now = datetime.now(timezone.utc).isoformat()
+    # Extract rol_id from overrides (if provided) before passing to Usuario
+    rol_id = overrides.pop("rol_id", Role.CLIENT.value)
     defaults = dict(
         email="user@example.com",
         password_hash="hashed",
         nombre="Test",
         apellido="User",
-        rol_id=Role.CLIENT.value,
         activo=True,
         fecha_creacion=now,
         fecha_actualizacion=now,
@@ -104,6 +108,9 @@ def create_user(session: Session, **overrides) -> Usuario:
     defaults.update(overrides)
     user = Usuario(**defaults)
     session.add(user)
+    session.flush()  # Get user.id
+    # Create UsuarioRol pivot entry
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=rol_id))
     session.commit()
     session.refresh(user)
     return user
@@ -116,7 +123,7 @@ def create_token_for(user: Usuario) -> str:
     token_data = {
         "user_id": user.id,
         "email": user.email,
-        "rol_id": user.rol_id,
+        "roles": user.rol_ids,
         "nonce": time.time(),
     }
     return create_access_token(token_data)
@@ -295,7 +302,7 @@ class TestAdminRoleAssignment:
         admin = create_user(
             session, email="boss@test.com", rol_id=Role.ADMIN.value
         )
-        other_admin = create_user(
+        create_user(
             session, email="other-admin@test.com", rol_id=Role.ADMIN.value
         )
         target = create_user(
@@ -311,13 +318,13 @@ class TestAdminRoleAssignment:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["rol_id"] == Role.STOCK.value
+        assert Role.STOCK.value in data["roles"]
         assert data["email"] == target.email
 
         # Verify database was actually updated
         repo = UsuarioRepository(session)
         db_user = repo.get(target.id)
-        assert db_user.rol_id == Role.STOCK.value
+        assert Role.STOCK.value in db_user.rol_ids
 
     # ------------------------------------------------------------------
     # 4.5  Test non-admin cannot assign roles (403)
@@ -348,7 +355,7 @@ class TestAdminRoleAssignment:
         # Verify database was NOT updated
         repo = UsuarioRepository(session)
         db_user = repo.get(target.id)
-        assert db_user.rol_id == Role.CLIENT.value
+        assert Role.CLIENT.value in db_user.rol_ids
 
     def test_stock_gets_403_when_assigning_role(self, session, client):
         """STOCK user should also be forbidden from assigning roles."""
@@ -388,7 +395,7 @@ class TestAdminRoleAssignment:
 
         response = client.put(
             f"/api/v1/auth/users/{admin.id}/role",
-            json={"rol_id": Role.STOCK.value},
+            json={"rol_id": Role.ADMIN.value, "action": "remove"},
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -401,7 +408,7 @@ class TestAdminRoleAssignment:
         # Verify database was NOT changed
         repo = UsuarioRepository(session)
         db_user = repo.get(admin.id)
-        assert db_user.rol_id == Role.ADMIN.value
+        assert Role.ADMIN.value in db_user.rol_ids
 
     def test_last_admin_can_assign_self_to_same_role(self, session, client):
         """Last admin CAN change own role to ADMIN (no-op is fine)."""
@@ -418,7 +425,7 @@ class TestAdminRoleAssignment:
 
         # Should succeed because they aren't changing *away from* admin
         assert response.status_code == 200
-        assert response.json()["rol_id"] == Role.ADMIN.value
+        assert Role.ADMIN.value in response.json()["roles"]
 
     def test_admin_can_self_degrade_when_other_admin_exists(
         self, session, client
@@ -432,19 +439,28 @@ class TestAdminRoleAssignment:
         )
         token = create_token_for(admin1)
 
+        # Add STOCK role
         response = client.put(
             f"/api/v1/auth/users/{admin1.id}/role",
-            json={"rol_id": Role.STOCK.value},
+            json={"rol_id": Role.STOCK.value, "action": "add"},
             headers={"Authorization": f"Bearer {token}"},
         )
-
         assert response.status_code == 200
-        assert response.json()["rol_id"] == Role.STOCK.value
+        assert Role.STOCK.value in response.json()["roles"]
+
+        # Remove ADMIN role (allowed because admin2 exists)
+        response = client.put(
+            f"/api/v1/auth/users/{admin1.id}/role",
+            json={"rol_id": Role.ADMIN.value, "action": "remove"},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert response.status_code == 200
+        assert Role.ADMIN.value not in response.json()["roles"]
 
         # admin2 should still be admin
         repo = UsuarioRepository(session)
         db_admin2 = repo.get(admin2.id)
-        assert db_admin2.rol_id == Role.ADMIN.value
+        assert Role.ADMIN.value in db_admin2.rol_ids
 
 
 class TestPublicRoutes:

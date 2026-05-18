@@ -9,6 +9,7 @@ from app.models.estado_pedido import EstadoPedido
 from app.models.forma_pago import FormaPago
 from app.models.usuario import Usuario
 from app.models.configuracion import Configuracion
+from app.models.usuario_rol import UsuarioRol
 
 
 # Create engine and session
@@ -70,12 +71,9 @@ def seed_formas_pago(session):
 
 def seed_admin_user(session):
     """Seed admin user."""
-    # TODO: Add ADMIN_PASSWORD to Settings in core/config.py
-    # Once added, use: admin_password = settings.ADMIN_PASSWORD
     admin_password = settings.ADMIN_PASSWORD if hasattr(settings, 'ADMIN_PASSWORD') else "admin123"
     password_hash = hash_password(admin_password)
 
-    # Check if admin exists
     existing = session.query(Usuario).filter(Usuario.email == "admin@foodstore.com").first()
     if not existing:
         now = datetime.now().isoformat()
@@ -84,14 +82,25 @@ def seed_admin_user(session):
             password_hash=password_hash,
             nombre="Admin",
             apellido="FoodStore",
-            rol_id=1,  # ADMIN
             activo=True,
             fecha_creacion=now,
             fecha_actualizacion=now,
         )
         session.add(admin)
+        session.flush()  # Flush to get admin.id
+
+        admin_rol = UsuarioRol(usuario_id=admin.id, rol_id=1)
+        session.add(admin_rol)
         print("[OK] Admin user ready")
     else:
+        # Ensure existing admin has ADMIN role in UsuarioRol
+        existing_rol = session.query(UsuarioRol).filter(
+            UsuarioRol.usuario_id == existing.id,
+            UsuarioRol.rol_id == 1,
+        ).first()
+        if not existing_rol:
+            admin_rol = UsuarioRol(usuario_id=existing.id, rol_id=1)
+            session.add(admin_rol)
         print("[OK] Admin user already exists")
 
 

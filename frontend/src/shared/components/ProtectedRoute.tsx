@@ -4,7 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import ForbiddenPage from './ForbiddenPage';
 
 interface ProtectedRouteProps {
-  /** If provided, the user's rol_id must be in this list to access the route */
+  /** If provided, the user must have at least one of these roles to access the route */
   requiredRoles?: number[];
 }
 
@@ -24,7 +24,7 @@ export default function ProtectedRoute({ requiredRoles }: ProtectedRouteProps) {
   }
 
   // Authenticated but insufficient role → 403
-  if (requiredRoles && !requiredRoles.includes(user.rol_id)) {
+  if (requiredRoles && !requiredRoles.some((roleId) => user.roles.includes(roleId))) {
     return <ForbiddenPage />;
   }
 

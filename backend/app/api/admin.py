@@ -406,9 +406,8 @@ def asignar_rol_usuario(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN)),
 ):
     """Assign a role to a user. Admin only.
-
-    Implements RN-RB04: prevents self-degradation if the caller is the
-    last ADMIN in the system.
+    
+    Implements RN-RB04: prevents removing ADMIN from self if last admin.
     """
     with UnitOfWork(session) as uow:
         repo = UsuarioRepository(uow.session)
@@ -420,12 +419,8 @@ def asignar_rol_usuario(
                 detail="Usuario no encontrado",
             )
 
-        # RN-RB04: Prevent self-degradation if last admin
-        is_self_degradation = usuario_id == current_user.user_id
-        is_currently_admin = user.rol_id == Role.ADMIN.value
-        is_changing_away_from_admin = data.rol_id != Role.ADMIN.value
-
-        if is_self_degradation and is_currently_admin and is_changing_away_from_admin:
+        # RN-RB04: Prevent removing ADMIN from self if last admin
+        if data.action == "remove" and data.rol_id == Role.ADMIN.value and usuario_id == current_user.user_id:
             admin_users = repo.get_by_rol(Role.ADMIN.value)
             if len(admin_users) <= 1:
                 raise HTTPException(
@@ -433,8 +428,11 @@ def asignar_rol_usuario(
                     detail="Cannot remove admin role from the last administrator",
                 )
 
-        # Update role
-        repo.update(usuario_id, {"rol_id": data.rol_id})
+        if data.action == "add":
+            repo.add_role(usuario_id, data.rol_id)
+        elif data.action == "remove":
+            repo.remove_role(usuario_id, data.rol_id)
+
         uow.session.refresh(user)
 
     return user

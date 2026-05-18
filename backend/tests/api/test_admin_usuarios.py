@@ -34,6 +34,9 @@ def engine():
 def session(engine):
     """Create a clean session for each test."""
     with Session(engine) as session:
+        from tests.conftest import seed_roles
+        seed_roles(session)
+        session.commit()
         yield session
 
 
@@ -60,13 +63,15 @@ def client(session: Session):
 
 def create_user(session: Session, **overrides) -> Usuario:
     """Factory helper to create a Usuario row with sensible defaults."""
+    from app.models.usuario_rol import UsuarioRol
     now = datetime.now(timezone.utc).isoformat()
+    # Extract rol_id from overrides (if provided) before passing to Usuario
+    rol_id = overrides.pop("rol_id", Role.CLIENT.value)
     defaults = dict(
         email="user@example.com",
         password_hash="hashed",
         nombre="Test",
         apellido="User",
-        rol_id=Role.CLIENT.value,
         activo=True,
         fecha_creacion=now,
         fecha_actualizacion=now,
@@ -74,6 +79,9 @@ def create_user(session: Session, **overrides) -> Usuario:
     defaults.update(overrides)
     user = Usuario(**defaults)
     session.add(user)
+    session.flush()  # Get user.id
+    # Create UsuarioRol pivot entry
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=rol_id))
     session.commit()
     session.refresh(user)
     return user
@@ -86,7 +94,7 @@ def create_token_for(user: Usuario) -> str:
     token_data = {
         "user_id": user.id,
         "email": user.email,
-        "rol_id": user.rol_id,
+        "roles": user.rol_ids,
         "nonce": time.time(),
     }
     return create_access_token(token_data)
@@ -227,7 +235,7 @@ class TestListUsuarios:
         assert response.status_code == 200
         data = response.json()
         assert len(data["items"]) == 1
-        assert data["items"][0]["rol_id"] == 2
+        assert 2 in data["items"][0]["roles"]
 
     def test_soft_deleted_users_are_excluded(self, session, client):
         """
@@ -239,7 +247,7 @@ class TestListUsuarios:
         admin = create_user(
             session, email="admin@test.com", rol_id=Role.ADMIN.value
         )
-        active = create_user(
+        create_user(
             session, email="active@test.com"
         )
         deleted_user = create_user(
@@ -469,7 +477,7 @@ class TestAssignRole:
         admin = create_user(
             session, email="admin@test.com", rol_id=Role.ADMIN.value
         )
-        other_admin = create_user(
+        create_user(
             session, email="other-admin@test.com", rol_id=Role.ADMIN.value
         )
         target = create_user(
@@ -484,13 +492,13 @@ class TestAssignRole:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["rol_id"] == Role.STOCK.value
+        assert Role.STOCK.value in data["roles"]
 
         # Verify DB
         from app.domain.usuarios.repository import UsuarioRepository
         repo = UsuarioRepository(session)
         db_user = repo.get(target.id)
-        assert db_user.rol_id == Role.STOCK.value
+        assert Role.STOCK.value in db_user.rol_ids
 
     def test_last_admin_cannot_self_degrade(self, session, client):
         """
@@ -505,7 +513,7 @@ class TestAssignRole:
 
         response = client.put(
             f"/api/v1/admin/usuarios/{admin.id}/role",
-            json={"rol_id": Role.STOCK.value},
+            json={"rol_id": Role.ADMIN.value, "action": "remove"},
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -514,6 +522,10 @@ class TestAssignRole:
             response.json()["detail"]
             == "Cannot remove admin role from the last administrator"
         )
+
+        # Verify ADMIN role was NOT removed
+        session.refresh(admin)
+        assert Role.ADMIN.value in admin.rol_ids
 
     def test_admin_can_self_degrade_with_other_admin(self, session, client):
         """
@@ -528,14 +540,24 @@ class TestAssignRole:
             session, email="admin2@test.com", rol_id=Role.ADMIN.value
         )
 
+        # First: add STOCK role to admin1
         response = client.put(
             f"/api/v1/admin/usuarios/{admin1.id}/role",
-            json={"rol_id": Role.STOCK.value},
+            json={"rol_id": Role.STOCK.value, "action": "add"},
             headers=auth_header(admin1),
         )
-
         assert response.status_code == 200
-        assert response.json()["rol_id"] == Role.STOCK.value
+        assert Role.STOCK.value in response.json()["roles"]
+
+        # Second: remove ADMIN role from admin1 (allowed because admin2 exists)
+        response = client.put(
+            f"/api/v1/admin/usuarios/{admin1.id}/role",
+            json={"rol_id": Role.ADMIN.value, "action": "remove"},
+            headers=auth_header(admin1),
+        )
+        assert response.status_code == 200
+        assert Role.ADMIN.value not in response.json()["roles"]
+        assert Role.STOCK.value in response.json()["roles"]
 
     def test_non_admin_cannot_assign_role(self, session, client):
         """

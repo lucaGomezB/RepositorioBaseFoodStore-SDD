@@ -96,9 +96,9 @@ const mockPedidoDetail = {
 describe('PedidoDetailPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default: user is a regular CLIENT (rol_id=2)
+    // Default: user is a regular CLIENT (roles=[2])
     (useAuthStore as Mock).mockReturnValue({
-      user: { rol_id: 2 },
+      user: { roles: [2] },
     });
   });
 
@@ -163,9 +163,9 @@ describe('PedidoDetailPage', () => {
   });
 
   it('should show client info for admin users', () => {
-    // Admin user (rol_id=1)
+    // Admin user (roles=[1])
     (useAuthStore as Mock).mockReturnValue({
-      user: { rol_id: 1 },
+      user: { roles: [1] },
     });
 
     (usePedido as Mock).mockReturnValue({
@@ -235,7 +235,7 @@ describe('PedidoDetailPage', () => {
 
   it('should not show customer section for regular client user', () => {
     (useAuthStore as Mock).mockReturnValue({
-      user: { rol_id: 2 }, // CLIENT
+      user: { roles: [2] }, // CLIENT
     });
 
     (usePedido as Mock).mockReturnValue({

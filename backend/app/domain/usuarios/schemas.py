@@ -1,6 +1,6 @@
 # Usuario Schemas for admin endpoints
-from typing import Optional
-from pydantic import ConfigDict
+from typing import Any, Optional
+from pydantic import ConfigDict, field_validator
 from sqlmodel import SQLModel
 
 
@@ -10,9 +10,18 @@ class UsuarioRead(SQLModel):
     email: str
     nombre: str
     apellido: str
-    rol_id: int
+    roles: list[int] = []
     activo: bool
     fecha_creacion: str
+
+    @field_validator("roles", mode="before")
+    @classmethod
+    def _convert_roles(cls, v: Any) -> list[int]:
+        """Convert Rol objects to IDs when validating from attributes."""
+        if isinstance(v, list):
+            return [item.id if hasattr(item, "id") else item for item in v]
+        return []
+
     model_config = ConfigDict(
         from_attributes=True,
         json_schema_extra={
@@ -21,7 +30,7 @@ class UsuarioRead(SQLModel):
                 "email": "admin@foodstore.com",
                 "nombre": "Admin",
                 "apellido": "User",
-                "rol_id": 1,
+                "roles": [1],
                 "activo": True,
                 "fecha_creacion": "2024-01-15T10:30:00",
             },
@@ -47,11 +56,13 @@ class UsuarioUpdate(SQLModel):
 
 class UsuarioRoleUpdate(SQLModel):
     """Schema for updating a user's role assignment."""
-    rol_id: int
+    rol_id: int  # Role to add or remove
+    action: str = "add"  # "add" or "remove"
     model_config = {
         "json_schema_extra": {
             "example": {
                 "rol_id": 2,
+                "action": "add",
             },
         },
     }

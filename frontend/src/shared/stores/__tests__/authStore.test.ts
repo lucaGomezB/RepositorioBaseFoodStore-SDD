@@ -9,7 +9,7 @@ describe('authStore', () => {
     nombre: 'Test',
     apellido: 'User',
     telefono: '123456789',
-    rol_id: 1,
+    roles: [1],
     activo: true,
     fecha_creacion: '2024-01-01T00:00:00Z',
     fecha_actualizacion: '2024-01-01T00:00:00Z',

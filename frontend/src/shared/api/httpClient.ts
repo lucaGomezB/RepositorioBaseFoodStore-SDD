@@ -30,7 +30,7 @@ export interface AuthUser {
   email: string;
   nombre: string;
   apellido: string;
-  rol_id: number;
+  roles: number[];
   activo: boolean;
 }
 

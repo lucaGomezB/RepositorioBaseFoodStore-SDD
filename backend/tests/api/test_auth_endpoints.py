@@ -30,6 +30,8 @@ def engine():
 def session(engine):
     """Create a new session for each test with clean database."""
     with Session(engine) as session:
+        from tests.conftest import seed_roles
+        seed_roles(session)
         # Clear all tables before each test
         session.exec(text("DELETE FROM refresh_tokens"))
         session.exec(text("DELETE FROM usuarios"))
@@ -40,18 +42,20 @@ def session(engine):
 @pytest.fixture
 def test_user(session: Session) -> Usuario:
     """Create a test user in the database."""
+    from app.models.usuario_rol import UsuarioRol
     now = datetime.now(timezone.utc).isoformat()
     user = Usuario(
         email="test@example.com",
         password_hash="hashedpassword",
         nombre="Test",
         apellido="User",
-        rol_id=1,
         activo=True,
         fecha_creacion=now,
         fecha_actualizacion=now
     )
     session.add(user)
+    session.flush()  # Get user.id
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=1))  # ADMIN role
     session.commit()
     session.refresh(user)
     return user
@@ -81,7 +85,7 @@ def create_unique_tokens(user_id: int, email: str, rol_id: int):
     token_data = {
         "user_id": user_id,
         "email": email,
-        "rol_id": rol_id,
+        "roles": [rol_id],
         "nonce": time.time()  # Add nonce to ensure uniqueness
     }
     access_token = create_access_token(token_data)
@@ -156,7 +160,7 @@ class TestRefreshEndpoint:
         expired_payload = {
             "user_id": test_user.id,
             "email": test_user.email,
-            "rol_id": test_user.rol_id,
+            "roles": test_user.rol_ids,
             "exp": 0,  # Expired timestamp
             "type": "refresh"
         }

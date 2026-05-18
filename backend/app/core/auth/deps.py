@@ -15,10 +15,15 @@ security = HTTPBearer(auto_error=False)
 
 class TokenPayload:
     """Token payload data class."""
-    def __init__(self, user_id: int, email: str, rol_id: int):
+    def __init__(self, user_id: int, email: str, roles: list[int]):
         self.user_id = user_id
         self.email = email
-        self.rol_id = rol_id
+        self.roles = roles
+
+    @property
+    def rol_id(self) -> int:
+        """Primary role (first role). For backward compatibility."""
+        return self.roles[0] if self.roles else 4
 
 
 def get_current_user(
@@ -78,7 +83,7 @@ def get_current_user(
     # Extract user info from payload
     user_id = payload.get("user_id")
     email = payload.get("email")
-    rol_id = payload.get("rol_id")
+    roles = payload.get("roles", [])
     
     if not user_id or not email:
         raise HTTPException(
@@ -87,7 +92,7 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    return TokenPayload(user_id=user_id, email=email, rol_id=rol_id)
+    return TokenPayload(user_id=user_id, email=email, roles=roles)
 
 
 def get_current_active_user(
@@ -145,7 +150,7 @@ def require_admin(
     Raises:
         HTTPException: 403 if user is not admin
     """
-    if current_user.rol_id != Role.ADMIN.value:
+    if Role.ADMIN.value not in current_user.roles:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Insufficient permissions",

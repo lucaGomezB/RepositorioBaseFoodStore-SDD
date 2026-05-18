@@ -72,9 +72,8 @@ class ProductoRepository(BaseRepository[Producto]):
     
     def get_disponibles(self, skip: int = 0, limit: int = 100) -> List[Producto]:
         """Get available products."""
-        from sqlmodel import col
         statement = select(Producto).where(
-            Producto.disponible == True,
+            Producto.disponible,
             Producto.eliminado_en.is_(None),
         ).offset(skip).limit(limit)
         return list(self.session.exec(statement))

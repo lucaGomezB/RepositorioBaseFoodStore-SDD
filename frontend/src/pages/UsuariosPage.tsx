@@ -71,74 +71,90 @@ function DeleteConfirmDialog({
 function AssignRoleModal({
   usuarioId,
   usuarioNombre,
-  rolActual,
+  rolesActuales,
   onClose,
 }: {
   usuarioId: number;
   usuarioNombre: string;
-  rolActual: number;
+  rolesActuales: number[];
   onClose: () => void;
 }) {
-  const addToast = useUIStore((s) => s.addToast);
   const asignarRol = useAsignarRol();
-  const [selectedRol, setSelectedRol] = useState<number>(rolActual);
+  const [pendingRoles, setPendingRoles] = useState<number[]>([...rolesActuales]);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const addToast = useUIStore((s) => s.addToast);
 
-  const handleSubmit = async () => {
-    if (selectedRol === rolActual) {
-      onClose();
-      return;
-    }
+  const handleToggleRole = (rolId: number) => {
+    setPendingRoles((prev) =>
+      prev.includes(rolId)
+        ? prev.filter((id) => id !== rolId)
+        : [...prev, rolId],
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
     setError(null);
+
+    // Calculate adds and removes
+    const toAdd = pendingRoles.filter((r) => !rolesActuales.includes(r));
+    const toRemove = rolesActuales.filter((r) => !pendingRoles.includes(r));
+
     try {
-      await asignarRol.mutateAsync({ id: usuarioId, rol_id: selectedRol });
-      addToast({
-        type: 'success',
-        message: `Rol de "${usuarioNombre}" actualizado a ${ROLES[selectedRol]}`,
-      });
+      // Execute removes first, then adds
+      for (const rolId of toRemove) {
+        await asignarRol.mutateAsync({ id: usuarioId, rol_id: rolId, action: 'remove' });
+      }
+      for (const rolId of toAdd) {
+        await asignarRol.mutateAsync({ id: usuarioId, rol_id: rolId, action: 'add' });
+      }
+
+      addToast({ type: 'success', message: `Roles de "${usuarioNombre}" actualizados` });
       onClose();
     } catch (err) {
       const msg =
         (err as { response?: { data?: { detail?: string } } })?.response?.data
-          ?.detail ||
-        (err as Error)?.message ||
-        'Error al asignar rol';
+          ?.detail || (err as Error).message;
       setError(msg);
+    } finally {
+      setSaving(false);
     }
   };
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50"
-      onClick={onClose}
-    >
-      <div
-        className="bg-white rounded p-6 w-full max-w-sm shadow-xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <h2 className="text-lg font-bold mb-2">Asignar Rol</h2>
-        <p className="text-sm text-gray-600 mb-4">
-          Usuario: <span className="font-medium">{usuarioNombre}</span>
-        </p>
+  const allRoles = [
+    { id: 1, label: 'Administrador' },
+    { id: 2, label: 'Stock' },
+    { id: 3, label: 'Pedidos' },
+    { id: 4, label: 'Cliente' },
+  ];
 
-        <label className="block text-sm font-medium mb-1">Rol</label>
-        <select
-          value={selectedRol}
-          onChange={(e) => setSelectedRol(Number(e.target.value))}
-          className="border px-3 py-2 rounded w-full mb-4"
-        >
-          {Object.entries(ROLES).map(([id, label]) => (
-            <option key={id} value={id}>
-              {label}
-            </option>
-          ))}
-        </select>
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+        <h2 className="text-lg font-bold mb-2">Roles de {usuarioNombre}</h2>
+        <p className="text-sm text-gray-500 mb-4">Seleccioná los roles que tendrá el usuario</p>
 
         {error && (
-          <p className="text-red-600 text-sm mb-4 bg-red-50 p-2 rounded">
-            {error}
-          </p>
+          <div className="bg-red-100 text-red-700 p-2 mb-4 rounded text-sm">{error}</div>
         )}
+
+        <div className="space-y-3 mb-6">
+          {allRoles.map((rol) => (
+            <label
+              key={rol.id}
+              className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
+            >
+              <input
+                type="checkbox"
+                checked={pendingRoles.includes(rol.id)}
+                onChange={() => handleToggleRole(rol.id)}
+                className="w-4 h-4 cursor-pointer"
+              />
+              <span className="font-medium">{rol.label}</span>
+            </label>
+          ))}
+        </div>
 
         <div className="flex gap-2 justify-end">
           <button
@@ -148,11 +164,11 @@ function AssignRoleModal({
             Cancelar
           </button>
           <button
-            onClick={handleSubmit}
-            disabled={asignarRol.isPending || selectedRol === rolActual}
+            onClick={handleSave}
+            disabled={saving}
             className="bg-blue-600 text-white px-4 py-2 rounded cursor-pointer hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
-            {asignarRol.isPending ? 'Guardando...' : 'Guardar'}
+            {saving ? 'Guardando...' : 'Guardar'}
           </button>
         </div>
       </div>
@@ -214,7 +230,7 @@ export default function UsuariosPage() {
   const [assignRoleTarget, setAssignRoleTarget] = useState<{
     id: number;
     nombre: string;
-    rol_id: number;
+    roles: number[];
   } | null>(null);
 
   // Data fetching
@@ -325,7 +341,7 @@ export default function UsuariosPage() {
                       </td>
                       <td className="border p-2">
                         <span className="inline-block bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
-                          {ROLES[user.rol_id] ?? `Rol ${user.rol_id}`}
+                          {user.roles.map((r) => ROLES[r]).filter(Boolean).join(', ') || 'Sin rol'}
                         </span>
                       </td>
                       <td className="border p-2">
@@ -356,7 +372,7 @@ export default function UsuariosPage() {
                               setAssignRoleTarget({
                                 id: user.id,
                                 nombre: `${user.nombre} ${user.apellido}`,
-                                rol_id: user.rol_id,
+                                roles: user.roles,
                               })
                             }
                             className="bg-blue-600 text-white px-2.5 py-1 rounded text-sm cursor-pointer hover:bg-blue-700 transition-colors"
@@ -435,7 +451,7 @@ export default function UsuariosPage() {
         <AssignRoleModal
           usuarioId={assignRoleTarget.id}
           usuarioNombre={assignRoleTarget.nombre}
-          rolActual={assignRoleTarget.rol_id}
+          rolesActuales={assignRoleTarget.roles}
           onClose={() => setAssignRoleTarget(null)}
         />
       )}

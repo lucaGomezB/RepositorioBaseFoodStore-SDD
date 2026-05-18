@@ -6,7 +6,7 @@ export interface User {
   nombre: string;
   apellido: string;
   telefono?: string;
-  rol_id: number;
+  roles: number[];
   activo: boolean;
   fecha_creacion?: string;
   fecha_actualizacion?: string;

@@ -48,6 +48,9 @@ def engine():
 def session(engine):
     """Create a clean session for each test."""
     with Session(engine) as session:
+        from tests.conftest import seed_roles
+        seed_roles(session)
+        session.commit()
         yield session
 
 
@@ -74,13 +77,15 @@ def client(session: Session):
 
 def create_user(session: Session, **overrides) -> Usuario:
     """Factory helper to create a Usuario row with sensible defaults."""
+    from app.models.usuario_rol import UsuarioRol
     now = datetime.now(timezone.utc).isoformat()
+    # Extract rol_id from overrides (if provided) before passing to Usuario
+    rol_id = overrides.pop("rol_id", Role.CLIENT.value)
     defaults = dict(
         email="user@example.com",
         password_hash="hashed",
         nombre="Test",
         apellido="User",
-        rol_id=Role.CLIENT.value,
         activo=True,
         fecha_creacion=now,
         fecha_actualizacion=now,
@@ -88,6 +93,9 @@ def create_user(session: Session, **overrides) -> Usuario:
     defaults.update(overrides)
     user = Usuario(**defaults)
     session.add(user)
+    session.flush()  # Get user.id
+    # Create UsuarioRol pivot entry
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=rol_id))
     session.commit()
     session.refresh(user)
     return user
@@ -98,7 +106,7 @@ def create_token_for(user: Usuario) -> str:
     token_data = {
         "user_id": user.id,
         "email": user.email,
-        "rol_id": user.rol_id,
+        "roles": user.rol_ids,
         "nonce": time.time(),
     }
     return create_access_token(token_data)

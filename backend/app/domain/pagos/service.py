@@ -5,7 +5,7 @@ import hmac
 import time
 from typing import Optional, TYPE_CHECKING
 from uuid import uuid4
-from fastapi import HTTPException, status, Request
+from fastapi import HTTPException, status
 
 if TYPE_CHECKING:
     from app.core.uow import UnitOfWork
@@ -16,7 +16,6 @@ from app.domain.pedidos.repository import PedidoRepository
 from app.domain.pedidos.service import PedidoService
 from app.models.pago import Pago
 from app.models.pedido import Pedido
-from app.models.usuario import Usuario
 
 
 class PagoService:
@@ -68,7 +67,7 @@ class PagoService:
             HTTPException: 409 if order is not in PENDIENTE state.
         """
         repo = PagoRepository(uow.session)
-        pedido_repo = PedidoRepository(uow.session)
+        PedidoRepository(uow.session)
 
         # Step 1: Validate order exists
         pedido = uow.session.get(Pedido, pedido_id)
@@ -145,7 +144,7 @@ class PagoService:
                 mp_status = mp_result.get("status", "pending")
                 status_detail = mp_result.get("status_detail")
                 # Store preference URL for frontend redirect
-                init_point = mp_result.get("init_point")
+                mp_result.get("init_point")
             except Exception as e:
                 raise HTTPException(
                     status_code=status.HTTP_502_BAD_GATEWAY,

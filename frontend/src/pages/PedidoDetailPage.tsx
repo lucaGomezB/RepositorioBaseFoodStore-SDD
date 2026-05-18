@@ -39,7 +39,7 @@ export default function PedidoDetailPage() {
 
   // Determine if user can see customer contact info
   const { user } = useAuthStore();
-  const isAdminOrPedidos = user?.rol_id === 1 || user?.rol_id === 3;
+  const isAdminOrPedidos = user?.roles.includes(1) || user?.roles.includes(3);
 
   const { data: pedido, isLoading, isError, error } = usePedido(pedidoId);
   const { data: adminPedido } = useAdminPedido(isAdminOrPedidos ? pedidoId : undefined);

@@ -34,6 +34,9 @@ def engine():
 @pytest.fixture
 def session(engine):
     with Session(engine) as s:
+        from tests.conftest import seed_roles
+        seed_roles(s)
+        s.commit()
         yield s
 
 
@@ -57,18 +60,20 @@ def client(session: Session):
 
 
 def create_admin(session: Session) -> Usuario:
+    from app.models.usuario_rol import UsuarioRol
     now = datetime.now(timezone.utc).isoformat()
     user = Usuario(
         email="admin@test.com",
         password_hash="hashed",
         nombre="Admin",
         apellido="Test",
-        rol_id=Role.ADMIN.value,
         activo=True,
         fecha_creacion=now,
         fecha_actualizacion=now,
     )
     session.add(user)
+    session.flush()
+    session.add(UsuarioRol(usuario_id=user.id, rol_id=Role.ADMIN.value))
     session.commit()
     session.refresh(user)
     return user
@@ -78,7 +83,7 @@ def create_token_for(user: Usuario) -> str:
     token_data = {
         "user_id": user.id,
         "email": user.email,
-        "rol_id": user.rol_id,
+        "roles": user.rol_ids,
         "nonce": time.time(),
     }
     return create_access_token(token_data)

@@ -12,7 +12,6 @@ def make_user(**kwargs) -> Usuario:
         "password_hash": "hash",
         "nombre": "Default",
         "apellido": "User",
-        "rol_id": 1,
         "activo": True,
         "fecha_creacion": now,
         "fecha_actualizacion": now,

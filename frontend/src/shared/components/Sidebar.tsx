@@ -16,19 +16,19 @@ const allNavItems: NavItem[] = [
   // Public (visible to all)
   { label: 'Catálogo', path: '/', icon: '📋' },
 
-  // CLIENT items (rol_id=4) + ADMIN (rol_id=1)
+  // CLIENT items (roles=[4]) + ADMIN (roles=[1])
   { label: 'Mi Carrito', path: '/carrito', icon: '🛒', allowedRoles: [1, 4] },
   { label: 'Mis Pedidos', path: '/mis-pedidos', icon: '📦', allowedRoles: [1, 4] },
   { label: 'Mi Perfil', path: '/perfil', icon: '👤', allowedRoles: [1, 4] },
   { label: 'Mis Direcciones', path: '/direcciones', icon: '📍', allowedRoles: [1, 4] },
 
-  // STOCK items (rol_id=2) + ADMIN (rol_id=1)
+  // STOCK items (roles=[2]) + ADMIN (roles=[1])
   { label: 'Productos', path: '/productos', icon: '🍽️', allowedRoles: [1, 2] },
   { label: 'Categorías', path: '/categorias', icon: '🏷️', allowedRoles: [1, 2] },
   { label: 'Ingredientes', path: '/ingredientes', icon: '🥘', allowedRoles: [1, 2] },
   { label: 'Stock', path: '/stock', icon: '📊', allowedRoles: [1, 2] },
 
-  // PEDIDOS items (rol_id=3) + ADMIN (rol_id=1)
+  // PEDIDOS items (roles=[3]) + ADMIN (roles=[1])
   { label: 'Panel de Pedidos', path: '/panel-pedidos', icon: '📋', allowedRoles: [1, 3] },
 
   // ADMIN-only items
@@ -54,7 +54,8 @@ export default function Sidebar() {
     // Logged in: hide guest-only, show public + role-specific
     if (item.guestOnly) return false;
     if (!item.allowedRoles) return true;
-    return item.allowedRoles.includes(user!.rol_id);
+    // Check if user has at least one of the allowed roles
+    return item.allowedRoles.some((roleId) => user!.roles.includes(roleId));
   });
 
   return (

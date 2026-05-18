@@ -7,6 +7,7 @@ import { LoginPage } from '../pages/LoginPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import CartPage from '../pages/CartPage';
+import DireccionesPage from '../pages/DireccionesPage';
 import CategoriasCRUD from '../pages/CategoriasCRUD';
 import IngredientesCRUD from '../pages/IngredientesCRUD';
 import ProductosListPage from '../pages/ProductosListPage';
@@ -54,6 +55,7 @@ export const routes: RouteObject[] = [
       {
         element: <ProtectedRoute requiredRoles={[1, 4]} />,
         children: [
+          { path: 'direcciones', element: <DireccionesPage /> },
           { path: 'carrito', element: <CartPage /> },
           { path: 'checkout', element: <CheckoutPage /> },
           { path: 'pedidos/:id/confirmacion', element: <OrderConfirmationPage /> },

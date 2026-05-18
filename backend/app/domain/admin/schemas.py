@@ -183,7 +183,7 @@ class UsuarioListResponse(BaseModel):
                         "email": "admin@foodstore.com",
                         "nombre": "Admin",
                         "apellido": "User",
-                        "rol_id": 1,
+                        "roles": [1],
                         "activo": True,
                         "fecha_creacion": "2024-01-15T10:30:00",
                     },

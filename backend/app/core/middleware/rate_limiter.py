@@ -73,7 +73,6 @@ def add_rate_limit_headers(response, request: Request, limit: str) -> None:
     """
     # Get current limiter from app state
     if hasattr(request.app.state, "limiter"):
-        limiter: Limiter = request.app.state.limiter
         # This would need actual implementation to get current counts
         # For now, we'll set reasonable defaults
         response.headers["X-RateLimit-Limit"] = str(settings.RATE_LIMIT_LOGIN_REQUESTS)

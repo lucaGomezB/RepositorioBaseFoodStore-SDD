@@ -11,7 +11,7 @@ export interface UsuarioAdmin {
   email: string;
   nombre: string;
   apellido: string;
-  rol_id: number;
+  roles: number[];
   activo: boolean;
   fecha_creacion: string;
 }
@@ -113,13 +113,15 @@ export function useAsignarRol() {
     mutationFn: async ({
       id,
       rol_id,
+      action,
     }: {
       id: number;
       rol_id: number;
+      action?: string;
     }) => {
       const { data } = await httpClient.put(
         `/admin/usuarios/${id}/role`,
-        { rol_id },
+        { rol_id, action: action ?? 'add' },
       );
       return data;
     },

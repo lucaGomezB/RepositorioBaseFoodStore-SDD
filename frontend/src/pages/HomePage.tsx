@@ -69,7 +69,7 @@ export const HomePage = () => {
       {/* Pagination — only shown when there are results */}
       {data && data.total_count > 0 && (
         <CatalogPagination
-          page={filters.page ?? 0}
+          page={filters.page ?? 1}
           totalCount={data.total_count}
           limit={filters.limit ?? 12}
           onPageChange={setPage}

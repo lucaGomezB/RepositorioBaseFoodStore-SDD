@@ -204,7 +204,7 @@ def seed_productos(session):
 
 def seed_producto_categorias(session):
     """Link products to their categories (many-to-many)."""
-    now = datetime.now(timezone.utc).isoformat()
+    datetime.now(timezone.utc).isoformat()
     # (producto_id, categoria_id, es_principal)
     relaciones = [
         # Hamburguesas

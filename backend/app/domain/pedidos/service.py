@@ -11,7 +11,6 @@ from app.domain.pedidos.schemas import PedidoRead
 from app.models.detalle_pedido import DetallePedido
 from app.models.historial_estado_pedido import HistorialEstadoPedido
 from app.models.producto import Producto
-from app.models.direccion import Direccion
 from app.domain.pedidos.repository import PedidoRepository
 from app.domain.direcciones.repository import DireccionRepository
 from app.core.repositories.base import BaseRepository

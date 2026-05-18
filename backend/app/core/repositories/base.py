@@ -59,7 +59,7 @@ class BaseRepository(Generic[T]):
             List of all instances
         """
         statement = select(self._model)
-        return list(self.session.exec(statement))
+        return list(self.session.exec(statement).unique())
 
     def update(self, id: int, updates: Dict[str, Any]) -> Optional[T]:
         """
@@ -141,7 +141,7 @@ class BaseRepository(Generic[T]):
             raise ValueError(f"Model {self._model.__name__} has no field '{field}'")
 
         statement = select(self._model).where(getattr(self._model, field) == value)
-        return list(self.session.exec(statement))
+        return list(self.session.exec(statement).unique())
 
     def count(self) -> int:
         """
@@ -151,4 +151,4 @@ class BaseRepository(Generic[T]):
             Number of records
         """
         statement = select(self._model)
-        return len(list(self.session.exec(statement)))
+        return len(list(self.session.exec(statement).unique()))

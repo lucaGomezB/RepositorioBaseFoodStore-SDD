@@ -55,7 +55,7 @@ def make_token(user_id: int, email: str, rol_id: int) -> str:
     token_data = {
         "user_id": user_id,
         "email": email,
-        "rol_id": rol_id,
+        "roles": [rol_id],
         "nonce": time.time(),
     }
     return create_access_token(token_data)

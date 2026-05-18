@@ -15,6 +15,7 @@ from app.core.auth.authorization import require_roles
 from app.domain.usuarios.repository import UsuarioRepository
 from app.domain.auth.repository import RefreshTokenRepository
 from app.core.config import settings
+from app.models.usuario import Usuario
 from app.core.middleware.rate_limiter import limiter
 
 
@@ -78,7 +79,7 @@ class UserResponse(BaseModel):
     email: str
     nombre: str
     apellido: str
-    rol_id: int
+    roles: list[int] = []
     activo: bool
     
     model_config = ConfigDict(
@@ -89,7 +90,7 @@ class UserResponse(BaseModel):
                 "email": "admin@foodstore.com",
                 "nombre": "Admin",
                 "apellido": "User",
-                "rol_id": 1,
+                "roles": [1],
                 "activo": True,
             },
         },
@@ -99,10 +100,30 @@ class UserResponse(BaseModel):
 class AssignRoleRequest(BaseModel):
     """Schema for assigning a role to a user."""
     rol_id: int
+    action: str = "add"  # "add" or "remove"
     model_config = {
         "json_schema_extra": {
             "example": {
                 "rol_id": 2,
+                "action": "add",
+            },
+        },
+    }
+
+
+class RegisterRequest(BaseModel):
+    """Register request schema."""
+    email: EmailStr
+    password: str
+    nombre: str
+    apellido: str
+    model_config = {
+        "json_schema_extra": {
+            "example": {
+                "email": "cliente@foodstore.com",
+                "password": "MiPassword123!",
+                "nombre": "Juan",
+                "apellido": "Perez",
             },
         },
     }
@@ -145,7 +166,7 @@ def _build_auth_response(
                 "email": user.email,
                 "nombre": user.nombre,
                 "apellido": user.apellido,
-                "rol_id": user.rol_id,
+                "roles": user.rol_ids,
                 "activo": user.activo,
             },
         },
@@ -249,7 +270,7 @@ def login(
     token_data = {
         "user_id": user.id,
         "email": user.email,
-        "rol_id": user.rol_id
+        "roles": user.rol_ids,
     }
     
     access_token = create_access_token(token_data)
@@ -262,6 +283,48 @@ def login(
         refresh_token_repo.create_token(refresh_token, user.id, expires_at)
     
     return _build_auth_response(access_token, refresh_token, user)
+
+
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(
+    data: RegisterRequest,
+    session: Session = Depends(get_db),
+):
+    """Register a new user with CLIENT role (RN-AU07).
+    
+    The role is auto-assigned in the service layer, NOT taken from the request.
+    """
+    from app.core.security import hash_password
+    from app.models.usuario_rol import UsuarioRol
+    
+    # Check if email already exists
+    existing = session.query(Usuario).filter(Usuario.email == data.email).first()
+    if existing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )
+    
+    now = datetime.now(timezone.utc).isoformat()
+    user = Usuario(
+        email=data.email,
+        password_hash=hash_password(data.password),
+        nombre=data.nombre,
+        apellido=data.apellido,
+        activo=True,
+        fecha_creacion=now,
+        fecha_actualizacion=now,
+    )
+    session.add(user)
+    session.flush()  # Get user.id
+    
+    # Auto-assign CLIENT role (RN-AU07)
+    user_rol = UsuarioRol(usuario_id=user.id, rol_id=Role.CLIENT.value)
+    session.add(user_rol)
+    session.commit()
+    session.refresh(user)
+    
+    return user
 
 
 @router.post("/refresh")
@@ -326,7 +389,7 @@ def refresh_token(
         token_data = {
             "user_id": user.id,
             "email": user.email,
-            "rol_id": user.rol_id
+            "roles": user.rol_ids,
         }
         
         access_token = create_access_token(token_data)
@@ -397,7 +460,14 @@ def get_current_user_info(
             detail="User not found"
         )
     
-    return user
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nombre": user.nombre,
+        "apellido": user.apellido,
+        "roles": user.rol_ids,
+        "activo": user.activo,
+    }
 
 
 @router.put("/users/{user_id}/role", response_model=UserResponse)
@@ -408,15 +478,13 @@ def assign_user_role(
     session: Session = Depends(get_db),
 ):
     """
-    Assign a role to a user. Admin only.
+    Assign or remove a role from a user. Admin only.
     
-    RN-RB04: If the target user is an ADMIN and the requester is changing
-    their OWN role away from ADMIN, verify that at least one other ADMIN
-    exists in the system to prevent lockout.
+    RN-RB04: If removing ADMIN role from self, prevent if last admin.
     
     Args:
         user_id: Target user ID
-        data: New role assignment (rol_id)
+        data: Role assignment (rol_id + action)
         current_user: Authenticated admin user
         session: Database session
         
@@ -425,7 +493,7 @@ def assign_user_role(
         
     Raises:
         HTTPException: 404 if user not found
-        HTTPException: 400 if last admin tries to self-degrade (RN-RB04)
+        HTTPException: 400 if last admin tries to self-remove admin (RN-RB04)
         HTTPException: 403 if caller is not admin
     """
     with UnitOfWork(session) as uow:
@@ -438,13 +506,8 @@ def assign_user_role(
                 detail="User not found",
             )
 
-        # RN-RB04: Prevent self-degradation if last admin
-        is_self_degradation = user_id == current_user.user_id
-        is_currently_admin = user.rol_id == Role.ADMIN.value
-        is_changing_away_from_admin = data.rol_id != Role.ADMIN.value
-
-        if is_self_degradation and is_currently_admin and is_changing_away_from_admin:
-            # Count how many admins exist in the system
+        # If removing ADMIN role from self, check RN-RB04
+        if data.action == "remove" and data.rol_id == Role.ADMIN.value and user_id == current_user.user_id:
             admin_users = usuario_repo.get_by_rol(Role.ADMIN.value)
             if len(admin_users) <= 1:
                 raise HTTPException(
@@ -452,8 +515,19 @@ def assign_user_role(
                     detail="Cannot remove admin role from the last administrator",
                 )
 
-        # Update role
-        usuario_repo.update(user_id, {"rol_id": data.rol_id})
+        # Execute the action
+        if data.action == "add":
+            usuario_repo.add_role(user_id, data.rol_id)
+        elif data.action == "remove":
+            usuario_repo.remove_role(user_id, data.rol_id)
+
         uow.session.refresh(user)
 
-    return user
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nombre": user.nombre,
+        "apellido": user.apellido,
+        "roles": user.rol_ids,
+        "activo": user.activo,
+    }

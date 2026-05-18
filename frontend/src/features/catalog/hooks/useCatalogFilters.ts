@@ -15,21 +15,21 @@ export interface UseCatalogFiltersReturn {
 
 export function useCatalogFilters(): UseCatalogFiltersReturn {
   const [filters, setFilters] = useState<CatalogoFilters>({
-    page: 0,
+    page: 1,
     limit: DEFAULT_LIMIT,
   });
 
   const setBusqueda = useCallback((busqueda: string) => {
-    setFilters((prev) => ({ ...prev, busqueda, page: 0 }));
+    setFilters((prev) => ({ ...prev, busqueda, page: 1 }));
   }, []);
 
   const setCategoria = useCallback((categoria_id: number | undefined) => {
-    setFilters((prev) => ({ ...prev, categoria_id, page: 0 }));
+    setFilters((prev) => ({ ...prev, categoria_id, page: 1 }));
   }, []);
 
   const setExcluirAlergenos = useCallback(
     (excluir_alergenos: string | undefined) => {
-      setFilters((prev) => ({ ...prev, excluir_alergenos, page: 0 }));
+      setFilters((prev) => ({ ...prev, excluir_alergenos, page: 1 }));
     },
     [],
   );
@@ -39,7 +39,7 @@ export function useCatalogFilters(): UseCatalogFiltersReturn {
   }, []);
 
   const resetFilters = useCallback(() => {
-    setFilters({ page: 0, limit: DEFAULT_LIMIT });
+    setFilters({ page: 1, limit: DEFAULT_LIMIT });
   }, []);
 
   return {
