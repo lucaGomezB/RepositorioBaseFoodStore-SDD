@@ -135,10 +135,31 @@ class ProductoService:
             excluir_alergenos=excluir_alergenos,
         )
 
-        # Apply categoria_id filter by querying the link table
+        # Apply categoria_id filter by querying the link table (include subcategories)
         if categoria_id is not None:
+            from app.models.categoria import Categoria
+
+            # Build parent map and collect all descendant IDs
+            all_cats = uow.session.exec(select(Categoria)).all()
+            parent_map: dict[int, int | None] = {c.id: c.parent_id for c in all_cats}
+            subcat_ids = {categoria_id}
+            # Walk down the tree: add children whose parent is in subcat_ids
+            changed = True
+            while changed:
+                changed = False
+                for cat_id, parent_id in parent_map.items():
+                    if parent_id is not None and parent_id in subcat_ids and cat_id not in subcat_ids:
+                        subcat_ids.add(cat_id)
+                        changed = True
+
             cat_stmt = select(ProductoCategoria.producto_id).where(
-                ProductoCategoria.categoria_id == categoria_id,
+                ProductoCategoria.categoria_id.in_(subcat_ids),
+            )
+            cat_product_ids = set(uow.session.exec(cat_stmt).all())
+            all_productos = [p for p in all_productos if p.id in cat_product_ids]
+
+            cat_stmt = select(ProductoCategoria.producto_id).where(
+                ProductoCategoria.categoria_id.in_(subcat_ids),
             )
             cat_product_ids = set(uow.session.exec(cat_stmt).all())
             all_productos = [p for p in all_productos if p.id in cat_product_ids]
