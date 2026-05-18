@@ -1,17 +1,18 @@
 # Public Catalog Router
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlmodel import Session
-from typing import List, Optional
+from typing import Optional
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.deps import TokenPayload, get_current_user_optional
-from app.core.schemas.producto import (
+from app.domain.productos.schemas import (
     ProductoCatalogoRead,
     CatalogoResponse,
 )
-from app.core.services.producto import ProductoService
+from app.domain.productos.service import ProductoService
 
-router = APIRouter(prefix="/catalogo/productos", tags=["Catálogo Público"])
+router = APIRouter(prefix="/catalogo/productos", tags=["Catalog"])
 
 
 @router.get("/", response_model=CatalogoResponse)
@@ -35,15 +36,16 @@ def get_catalogo_productos(
     if disponible is None and not current_user:
         disponible = True
 
-    productos, total_count = ProductoService.get_catalogo(
-        session,
-        page=page,
-        limit=limit,
-        categoria_id=categoria_id,
-        busqueda=busqueda,
-        disponible=disponible,
-        excluir_alergenos=excluir_alergenos,
-    )
+    with UnitOfWork(session) as uow:
+        productos, total_count = ProductoService.get_catalogo(
+            uow,
+            page=page,
+            limit=limit,
+            categoria_id=categoria_id,
+            busqueda=busqueda,
+            disponible=disponible,
+            excluir_alergenos=excluir_alergenos,
+        )
     return CatalogoResponse(items=productos, total_count=total_count)
 
 
@@ -56,7 +58,8 @@ def get_catalogo_producto_detalle(
 
     Returns 404 if product not found, soft-deleted, or not available.
     """
-    producto = ProductoService.get_detalle_publico(session, producto_id)
+    with UnitOfWork(session) as uow:
+        producto = ProductoService.get_detalle_publico(uow, producto_id)
     if not producto:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

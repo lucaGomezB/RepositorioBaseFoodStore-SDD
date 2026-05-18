@@ -1,7 +1,6 @@
 # BaseRepository[T] - Generic repository with CRUD operations
 from typing import Generic, TypeVar, Type, List, Optional, Any, Dict
 from sqlmodel import Session, SQLModel, select
-from sqlalchemy.exc import SQLAlchemyError
 
 T = TypeVar("T", bound=SQLModel)
 
@@ -36,7 +35,7 @@ class BaseRepository(Generic[T]):
             The created instance with id populated
         """
         self.session.add(obj)
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(obj)
         return obj
 
@@ -81,7 +80,7 @@ class BaseRepository(Generic[T]):
             if hasattr(obj, key):
                 setattr(obj, key, value)
 
-        self.session.commit()
+        self.session.flush()
         self.session.refresh(obj)
         return obj
 
@@ -100,8 +99,15 @@ class BaseRepository(Generic[T]):
             return False
 
         self.session.delete(obj)
-        self.session.commit()
+        self.session.flush()
         return True
+
+    def flush(self) -> None:
+        """Flush pending changes to the database without committing.
+
+        The UnitOfWork is responsible for the final commit.
+        """
+        self.session.flush()
 
     def get_by_field(self, field: str, value: Any) -> Optional[T]:
         """

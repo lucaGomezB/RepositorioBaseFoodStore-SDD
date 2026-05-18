@@ -4,10 +4,11 @@ from sqlmodel import Session
 from typing import List, Optional
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.deps import TokenPayload, get_current_user_optional
 from app.core.auth.authorization import require_roles
 from app.core.auth.roles import Role
-from app.core.schemas.producto import (
+from app.domain.productos.schemas import (
     ProductoRead,
     ProductoCreate,
     ProductoUpdate,
@@ -17,7 +18,7 @@ from app.core.schemas.producto import (
     CategoriaAsignada,
     StockUpdate,
 )
-from app.core.services.producto import ProductoService
+from app.domain.productos.service import ProductoService
 
 router = APIRouter(prefix="/productos", tags=["Productos"])
 
@@ -42,21 +43,23 @@ def read_productos(
     """
     if incluir_eliminados and (not current_user or current_user.rol_id not in (Role.ADMIN, Role.STOCK)):
         incluir_eliminados = False
-    return ProductoService.get_all(
-        session,
-        skip=skip,
-        limit=limit,
-        categoria_id=categoria_id,
-        busqueda=busqueda,
-        disponible=disponible,
-        incluir_eliminados=incluir_eliminados,
-    )
+    with UnitOfWork(session) as uow:
+        return ProductoService.get_all(
+            uow,
+            skip=skip,
+            limit=limit,
+            categoria_id=categoria_id,
+            busqueda=busqueda,
+            disponible=disponible,
+            incluir_eliminados=incluir_eliminados,
+        )
 
 
 @router.get("/{producto_id}", response_model=ProductoRead)
 def read_producto(producto_id: int, session: Session = Depends(get_db)):
     """Get a product by ID. Public - no auth required."""
-    producto = ProductoService.get_by_id(session, producto_id)
+    with UnitOfWork(session) as uow:
+        producto = ProductoService.get_by_id(uow, producto_id)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
@@ -72,7 +75,8 @@ def create_producto(
 ):
     """Create a new product. Admin or Stock only."""
     producto_data = data.model_dump()
-    return ProductoService.create(session, producto_data)
+    with UnitOfWork(session) as uow:
+        return ProductoService.create(uow, producto_data)
 
 
 @router.patch("/{producto_id}", response_model=ProductoRead)
@@ -84,7 +88,8 @@ def update_producto(
 ):
     """Update a product. Admin or Stock only."""
     producto_data = data.model_dump(exclude_unset=True)
-    producto = ProductoService.update(session, producto_id, producto_data)
+    with UnitOfWork(session) as uow:
+        producto = ProductoService.update(uow, producto_id, producto_data)
     if not producto:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return producto
@@ -97,7 +102,9 @@ def delete_producto(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK)),
 ):
     """Delete a product (soft delete). Admin or Stock only."""
-    if not ProductoService.delete(session, producto_id):
+    with UnitOfWork(session) as uow:
+        deleted = ProductoService.delete(uow, producto_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return None
 
@@ -112,7 +119,8 @@ def update_producto_stock(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK)),
 ):
     """Atomically update product stock. Admin or Stock only."""
-    return ProductoService.actualizar_stock(session, producto_id, data.cantidad)
+    with UnitOfWork(session) as uow:
+        return ProductoService.actualizar_stock(uow, producto_id, data.cantidad)
 
 
 # --- Relationships Producto-Ingrediente ---
@@ -120,7 +128,8 @@ def update_producto_stock(
 @router.get("/{producto_id}/ingredientes", response_model=List[ProductoIngredienteRead])
 def get_producto_ingredientes(producto_id: int, session: Session = Depends(get_db)):
     """Get ingredients for a product. Public - no auth required."""
-    return ProductoService.get_ingredientes(session, producto_id)
+    with UnitOfWork(session) as uow:
+        return ProductoService.get_ingredientes(uow, producto_id)
 
 
 @router.post("/{producto_id}/ingredientes", response_model=List[ProductoIngredienteRead])
@@ -131,7 +140,8 @@ def add_producto_ingrediente(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Add an ingredient to a product. Admin or Stock only."""
-    result = ProductoService.add_ingrediente(session, producto_id, data.model_dump())
+    with UnitOfWork(session) as uow:
+        result = ProductoService.add_ingrediente(uow, producto_id, data.model_dump())
     if result is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return result
@@ -145,9 +155,10 @@ def replace_producto_ingredientes(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Replace all ingredients for a product atomically. Admin or Stock only."""
-    result = ProductoService.reemplazar_ingredientes(
-        session, producto_id, [ing.model_dump() for ing in data]
-    )
+    with UnitOfWork(session) as uow:
+        result = ProductoService.reemplazar_ingredientes(
+            uow, producto_id, [ing.model_dump() for ing in data]
+        )
     if result is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return result
@@ -161,7 +172,9 @@ def remove_producto_ingrediente(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Remove an ingredient from a product. Admin or Stock only."""
-    if not ProductoService.remove_ingrediente(session, producto_id, ingrediente_id):
+    with UnitOfWork(session) as uow:
+        removed = ProductoService.remove_ingrediente(uow, producto_id, ingrediente_id)
+    if not removed:
         raise HTTPException(status_code=404, detail="Relación no encontrada")
     return None
 
@@ -171,7 +184,8 @@ def remove_producto_ingrediente(
 @router.get("/{producto_id}/categorias", response_model=List[ProductoCategoriaRead])
 def get_producto_categorias(producto_id: int, session: Session = Depends(get_db)):
     """Get categories for a product. Public - no auth required."""
-    return ProductoService.get_categorias(session, producto_id)
+    with UnitOfWork(session) as uow:
+        return ProductoService.get_categorias(uow, producto_id)
 
 
 @router.post("/{producto_id}/categorias", response_model=List[ProductoCategoriaRead])
@@ -182,7 +196,8 @@ def add_producto_categoria(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Add a category to a product. Admin or Stock only."""
-    result = ProductoService.add_categoria(session, producto_id, data.model_dump())
+    with UnitOfWork(session) as uow:
+        result = ProductoService.add_categoria(uow, producto_id, data.model_dump())
     if result is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return result
@@ -196,9 +211,10 @@ def replace_producto_categorias(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Replace all categories for a product atomically. Admin or Stock only."""
-    result = ProductoService.reemplazar_categorias(
-        session, producto_id, [cat.model_dump() for cat in data]
-    )
+    with UnitOfWork(session) as uow:
+        result = ProductoService.reemplazar_categorias(
+            uow, producto_id, [cat.model_dump() for cat in data]
+        )
     if result is None:
         raise HTTPException(status_code=404, detail="Producto no encontrado")
     return result
@@ -212,6 +228,8 @@ def remove_producto_categoria(
     current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.STOCK))
 ):
     """Remove a category from a product. Admin or Stock only."""
-    if not ProductoService.remove_categoria(session, producto_id, categoria_id):
+    with UnitOfWork(session) as uow:
+        removed = ProductoService.remove_categoria(uow, producto_id, categoria_id)
+    if not removed:
         raise HTTPException(status_code=404, detail="Relación no encontrada")
     return None

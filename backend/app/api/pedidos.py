@@ -6,10 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel import Session
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.deps import TokenPayload, get_current_user
 from app.core.auth.authorization import require_roles
 from app.core.auth.roles import Role
-from app.core.schemas.pedido import (
+from app.domain.pedidos.schemas import (
     CrearPedidoRequest,
     PedidoRead,
     PedidoDetail,
@@ -17,7 +18,7 @@ from app.core.schemas.pedido import (
     HistorialEstadoRead,
     TransicionEstadoRequest,
 )
-from app.core.services.pedido import PedidoService
+from app.domain.pedidos.service import PedidoService
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
@@ -37,13 +38,13 @@ def crear_pedido(
     Only CLIENT and ADMIN roles can create orders.
     """
     try:
-        pedido = PedidoService.crear_pedido(
-            session,
-            current_user.user_id,
-            data.model_dump(),
-        )
-        session.commit()
-        session.refresh(pedido)
+        with UnitOfWork(session) as uow:
+            pedido = PedidoService.crear_pedido(
+                uow,
+                current_user.user_id,
+                data.model_dump(),
+            )
+            uow.session.refresh(pedido)
         return pedido
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
@@ -61,9 +62,10 @@ def obtener_pedido(
     ADMIN users can view any order.
     """
     is_admin = current_user.rol_id == Role.ADMIN.value
-    pedido = PedidoService.obtener_pedido(
-        session, pedido_id, current_user.user_id, is_admin
-    )
+    with UnitOfWork(session) as uow:
+        pedido = PedidoService.obtener_pedido(
+            uow, pedido_id, current_user.user_id, is_admin
+        )
 
     if not pedido:
         raise HTTPException(status_code=404, detail="Pedido no encontrado")
@@ -86,12 +88,13 @@ def read_pedido_historial(
     from the append-only audit log.
     """
     is_admin = current_user.rol_id == Role.ADMIN.value
-    return PedidoService.obtener_historial(
-        session,
-        pedido_id,
-        current_user.user_id,
-        is_admin,
-    )
+    with UnitOfWork(session) as uow:
+        return PedidoService.obtener_historial(
+            uow,
+            pedido_id,
+            current_user.user_id,
+            is_admin,
+        )
 
 
 @router.get("/", response_model=PedidoListResponse)
@@ -114,25 +117,26 @@ def listar_pedidos(
     """
     is_admin_or_pedidos = current_user.rol_id in (Role.ADMIN.value, Role.PEDIDOS.value)
 
-    if is_admin_or_pedidos:
-        items, total = PedidoService.listar_pedidos_admin(
-            session,
-            estado=estado,
-            desde=desde,
-            hasta=hasta,
-            busqueda=busqueda,
-            skip=skip,
-            limit=limit,
-        )
-    else:
-        # CLIENT: only their own orders, basic estado filter
-        items, total = PedidoService.listar_pedidos(
-            session,
-            current_user.user_id,
-            estado=estado,
-            skip=skip,
-            limit=limit,
-        )
+    with UnitOfWork(session) as uow:
+        if is_admin_or_pedidos:
+            items, total = PedidoService.listar_pedidos_admin(
+                uow,
+                estado=estado,
+                desde=desde,
+                hasta=hasta,
+                busqueda=busqueda,
+                skip=skip,
+                limit=limit,
+            )
+        else:
+            # CLIENT: only their own orders, basic estado filter
+            items, total = PedidoService.listar_pedidos(
+                uow,
+                current_user.user_id,
+                estado=estado,
+                skip=skip,
+                limit=limit,
+            )
 
     return PedidoListResponse(items=items, total_count=total)
 
@@ -151,7 +155,8 @@ def transicionar_estado_pedido(
 
     Only ADMIN and PEDIDOS roles can transition orders.
     """
-    return PedidoService.transicionar_estado(
-        session, pedido_id, data.nuevo_estado,
-        usuario_id=current_user.user_id, motivo=data.motivo,
-    )
+    with UnitOfWork(session) as uow:
+        return PedidoService.transicionar_estado(
+            uow, pedido_id, data.nuevo_estado,
+            usuario_id=current_user.user_id, motivo=data.motivo,
+        )

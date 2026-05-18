@@ -379,7 +379,7 @@ Sprint 3 (Perfil+Carrito):  21, 22, 23, 24, 25         [DONE]
 Sprint 4 (Pedidos):         26, 27, 28, 29             [DONE]
 Sprint 5 (Pagos):           30, 31, 32                  [DONE]
 Sprint 6 (Admin):           33, 34, 35, 36, 37          [DONE]
-Sprint 7 (Polish):           38, 39                      [PENDING] Pendiente
+Sprint 7 (Polish):           38, 39                      [DONE] Archivado 2026-05-17
 ```
 
 ---
@@ -387,6 +387,6 @@ Sprint 7 (Polish):           38, 39                      [PENDING] Pendiente
 **Generado**: 2026-04-28  
 **Actualizado**: 2026-05-13  
 **Basado en**: docs/Descripcion.txt, docs/Historias_de_usuario.txt, docs/Integrador.txt  
-**Cambios implementados**: 37/39 (Sprints 0-6 completos. Pendiente: Sprint 7 Polish)
+**Cambios implementados**: 39/39 (Sprints 0-7 completos. Todos los changes archivados.)
 
-**Último cambio archivado**: admin-orders-management (archivado 2026-05-13)
+**Último cambio archivado**: testing-and-polish, documentation-api-openapi (archivados 2026-05-17)

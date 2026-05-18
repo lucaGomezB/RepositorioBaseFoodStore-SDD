@@ -1,19 +1,17 @@
-// Auth Store - Hybrid (state + React Query delegation)
+// Auth Store — persiste el usuario en localStorage para que sobreviva a recargas
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { User } from '../types/api';
+import type { AuthUser } from '../api/httpClient';
 
 interface AuthState {
-  token: string | null;
-  refreshToken: string | null;
-  user: User | null;
+  user: AuthUser | null;
   isLoggedIn: boolean;
 }
 
 interface AuthActions {
-  setAuth: (token: string, refreshToken: string, user: User) => void;
+  setUser: (user: AuthUser) => void;
   logout: () => void;
-  updateUser: (user: User) => void;
+  updateUser: (user: AuthUser) => void;
 }
 
 type AuthStore = AuthState & AuthActions;
@@ -21,48 +19,27 @@ type AuthStore = AuthState & AuthActions;
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      // Initial state
-      token: null,
-      refreshToken: null,
       user: null,
       isLoggedIn: false,
 
-      // Actions
-      setAuth: (token, refreshToken, user) =>
-        set({
-          token,
-          refreshToken,
-          user,
-          isLoggedIn: true,
-        }),
+      setUser: (user) => {
+        if (!user) return;
+        set({ user, isLoggedIn: true });
+      },
 
       logout: () =>
-        set({
-          token: null,
-          refreshToken: null,
-          user: null,
-          isLoggedIn: false,
-        }),
+        set({ user: null, isLoggedIn: false }),
 
       updateUser: (user) =>
-        set({
-          user,
-        }),
+        set({ user }),
     }),
     {
-      name: 'auth-storage',
+      name: 'food-store-auth',
+      // Solo persistimos el usuario (no hay tokens que persistir, son httpOnly)
       partialize: (state) => ({
-        // Only persist token and user, not refreshToken for security
-        token: state.token,
         user: state.user,
         isLoggedIn: state.isLoggedIn,
       }),
-    }
-  )
+    },
+  ),
 );
-
-// Usage notes:
-// - This store holds state only
-// - API logic (login, refresh, logout) is handled by React Query mutations
-// - After successful login: useAuthStore.getState().setAuth(token, refreshToken, user)
-// - After logout: useAuthStore.getState().logout()

@@ -1,5 +1,5 @@
 # Seed data for initial database population
-from datetime import datetime
+from datetime import datetime, timezone
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
@@ -30,8 +30,7 @@ def seed_roles(session):
         if not existing:
             rol = Rol(**rol_data)
             session.add(rol)
-    session.commit()
-    print("[OK] Roles seeded")
+    print("[OK] Roles ready")
 
 
 def seed_estados_pedido(session):
@@ -50,8 +49,7 @@ def seed_estados_pedido(session):
         if not existing:
             estado = EstadoPedido(**estado_data)
             session.add(estado)
-    session.commit()
-    print("[OK] EstadoPedido seeded")
+    print("[OK] EstadoPedido ready")
 
 
 def seed_formas_pago(session):
@@ -67,14 +65,14 @@ def seed_formas_pago(session):
         if not existing:
             forma = FormaPago(**forma_data)
             session.add(forma)
-    session.commit()
-    print("[OK] FormaPago seeded")
+    print("[OK] FormaPago ready")
 
 
 def seed_admin_user(session):
     """Seed admin user."""
-    # Get admin password from env or use default
-    admin_password = "admin123"
+    # TODO: Add ADMIN_PASSWORD to Settings in core/config.py
+    # Once added, use: admin_password = settings.ADMIN_PASSWORD
+    admin_password = settings.ADMIN_PASSWORD if hasattr(settings, 'ADMIN_PASSWORD') else "admin123"
     password_hash = hash_password(admin_password)
 
     # Check if admin exists
@@ -92,8 +90,7 @@ def seed_admin_user(session):
             fecha_actualizacion=now,
         )
         session.add(admin)
-        session.commit()
-        print("[OK] Admin user seeded")
+        print("[OK] Admin user ready")
     else:
         print("[OK] Admin user already exists")
 
@@ -112,7 +109,6 @@ def seed_configuraciones(session):
     for cfg in configs_data:
         existing = session.get(Configuracion, cfg["clave"])
         if not existing:
-from datetime import datetime, timezone
             config = Configuracion(
                 clave=cfg["clave"],
                 valor=cfg["valor"],
@@ -120,8 +116,7 @@ from datetime import datetime, timezone
                 updated_at=datetime.now(timezone.utc),
             )
             session.add(config)
-    session.commit()
-    print("[OK] Configuraciones seeded")
+    print("[OK] Configuraciones ready")
 
 
 def main():
@@ -135,6 +130,7 @@ def main():
         seed_formas_pago(session)
         seed_admin_user(session)
         seed_configuraciones(session)
+        session.commit()
         print("\n[OK] All seed data populated successfully!")
     except Exception as e:
         print(f"\n✗ Error during seed: {e}")

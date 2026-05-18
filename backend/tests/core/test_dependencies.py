@@ -1,5 +1,4 @@
 # Integration tests for dependency injection patterns
-import pytest
 from unittest.mock import MagicMock, patch
 from sqlalchemy.orm import Session
 

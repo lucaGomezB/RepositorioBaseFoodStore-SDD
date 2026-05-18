@@ -1,5 +1,5 @@
 # Auth dependencies for FastAPI
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Cookie
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -8,10 +8,9 @@ from app.core.database import get_db
 from app.core.auth.tokens import decode_token, verify_token_type
 from app.core.auth.roles import Role
 from app.models.usuario import Usuario
-from app.core.repositories import UsuarioRepository
 
-# Security scheme
-security = HTTPBearer()
+# Security scheme — auto_error=False so we can fall back to cookies
+security = HTTPBearer(auto_error=False)
 
 
 class TokenPayload:
@@ -23,23 +22,41 @@ class TokenPayload:
 
 
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+    access_token: Optional[str] = Cookie(None),
     session: Session = Depends(get_db)
 ) -> TokenPayload:
     """
     Extract and validate the current user from JWT token.
     
+    Supports two token sources (in priority order):
+    1. Authorization: Bearer <token> header (API clients, tests)
+    2. access_token httpOnly cookie (browser clients)
+    
     Args:
-        credentials: HTTP Authorization credentials (Bearer token)
+        credentials: Optional HTTP Authorization credentials (Bearer token)
+        access_token: Optional token from httpOnly cookie
         session: Database session
         
     Returns:
         TokenPayload with user information
         
     Raises:
-        HTTPException: 401 if token is invalid or expired
+        HTTPException: 401 if no token is provided or token is invalid
     """
-    token = credentials.credentials
+    # Try Authorization header first, then cookie
+    token = None
+    if credentials is not None:
+        token = credentials.credentials
+    elif access_token is not None:
+        token = access_token
+    
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     # Decode token
     payload = decode_token(token)
@@ -138,23 +155,24 @@ def require_admin(
 
 def get_current_user_optional(
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    access_token: Optional[str] = Cookie(None),
     session: Session = Depends(get_db)
 ) -> Optional[TokenPayload]:
     """
     Optional current user - returns None if no valid token.
     Use this for endpoints that work with or without auth.
     
+    Supports both Authorization header and httpOnly cookie.
+    
     Args:
         credentials: Optional HTTP Authorization credentials
+        access_token: Optional token from httpOnly cookie
         session: Database session
         
     Returns:
         TokenPayload if valid token, None otherwise
     """
-    if not credentials:
-        return None
-    
     try:
-        return get_current_user(credentials, session)
+        return get_current_user(credentials, access_token, session)
     except HTTPException:
         return None

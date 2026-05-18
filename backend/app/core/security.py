@@ -1,6 +1,5 @@
 ﻿# Security helpers: password hashing and JWT configuration
 import bcrypt
-from typing import Optional
 from app.core.config import settings
 
 

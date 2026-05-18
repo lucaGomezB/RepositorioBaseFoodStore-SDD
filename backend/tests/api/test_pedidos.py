@@ -525,7 +525,7 @@ class TestFSM:
 
     def test_validar_transicion_permitida(self):
         """Valid transitions should return True."""
-        from app.core.services.pedido import validar_transicion
+        from app.domain.pedidos.service import validar_transicion
         assert validar_transicion("PENDIENTE", "CONFIRMADO") is True
         assert validar_transicion("PENDIENTE", "CANCELADO") is True
         assert validar_transicion("CONFIRMADO", "EN_PREPARACION") is True
@@ -534,7 +534,7 @@ class TestFSM:
 
     def test_validar_transicion_denegada(self):
         """Invalid transitions should return False."""
-        from app.core.services.pedido import validar_transicion
+        from app.domain.pedidos.service import validar_transicion
         assert validar_transicion("PENDIENTE", "ENTREGADO") is False
         assert validar_transicion("CONFIRMADO", "ENTREGADO") is False
         assert validar_transicion("ENTREGADO", "CANCELADO") is False
@@ -543,7 +543,7 @@ class TestFSM:
 
     def test_estados_terminales_no_admiten_transiciones(self):
         """Terminal states should have no outgoing transitions."""
-        from app.core.services.pedido import TRANSICIONES
+        from app.domain.pedidos.service import TRANSICIONES
         assert TRANSICIONES["ENTREGADO"] == []
         assert TRANSICIONES["CANCELADO"] == []
 

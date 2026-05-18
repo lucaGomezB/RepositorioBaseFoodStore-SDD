@@ -1,8 +1,7 @@
 # Direcciones endpoints integration tests
 import pytest
 from datetime import datetime, timezone
-from decimal import Decimal
-from sqlmodel import SQLModel, Session, create_engine, text
+from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 import time

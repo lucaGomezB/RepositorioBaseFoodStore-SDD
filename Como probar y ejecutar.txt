@@ -45,5 +45,3 @@ Probar toasts de error:
 - Si el servidor está caído → ves toast "Error interno"
 Probar Error Boundary:
 - Si un componente React explota, ves la pantalla "Algo salió mal" con botón "Reintentar"
----
-¿Querés que archive todos los changes del Sprint 1 ahora que están verificados?

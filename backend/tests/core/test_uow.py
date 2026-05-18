@@ -1,5 +1,4 @@
 # Tests for UnitOfWork
-import pytest
 from datetime import datetime, timezone
 from sqlmodel import Session
 from app.core.uow import UnitOfWork

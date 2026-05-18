@@ -2,7 +2,7 @@
 import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
-from sqlmodel import SQLModel, Session, create_engine, text
+from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
@@ -13,8 +13,6 @@ from app.models.usuario import Usuario
 from app.models.producto import Producto
 from app.models.categoria import Categoria
 from app.models.ingrediente import Ingrediente
-from app.models.producto_categoria import ProductoCategoria
-from app.models.producto_ingrediente import ProductoIngrediente
 from app.core.database import get_db
 
 
@@ -527,8 +525,6 @@ class TestFilters:
         THEN return only products in that category
         """
         # Import needed service
-        from app.core.services.producto import ProductoService
-        from app.core.repositories.producto import ProductoRepository
 
         admin = create_user(session, rol_id=Role.ADMIN.value)
         token = create_token_for(admin)

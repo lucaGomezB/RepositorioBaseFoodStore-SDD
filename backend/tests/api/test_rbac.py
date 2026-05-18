@@ -13,7 +13,7 @@ from app.core.auth.deps import TokenPayload
 from app.core.auth.tokens import create_access_token
 from app.models.usuario import Usuario
 from app.core.database import get_db
-from app.core.repositories import UsuarioRepository
+from app.domain.usuarios.repository import UsuarioRepository
 
 
 # ---------------------------------------------------------------------------

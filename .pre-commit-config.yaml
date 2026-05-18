@@ -1,0 +1,24 @@
+repos:
+  # ── Python linting with ruff ───────────────────────────────────
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.9.10
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-zero]
+        files: ^backend/
+        types_or: [python, pyi]
+
+  # ── TypeScript type checking (noEmit) for source files only ───
+  # Note: Test files (__tests__) that use vitest globals are excluded.
+  # Run vitest separately: `npm -C frontend test`
+  - repo: local
+    hooks:
+      - id: tsc
+        name: TypeScript type check
+        entry: >-
+          npx --prefix frontend tsc --noEmit
+          --project frontend/tsconfig.json
+        language: system
+        pass_filenames: false
+        always_run: true
+        verbose: true

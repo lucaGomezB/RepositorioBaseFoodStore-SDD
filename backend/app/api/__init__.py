@@ -13,8 +13,14 @@ from app.api.catalogo import router as catalogo_router
 from app.api.direcciones import router as direcciones_router
 from app.api.perfil import router as perfil_router
 from app.api.pedidos import router as pedidos_router
-from app.api.admin import router as admin_router
 from app.api.pagos import router as pagos_router
+from app.api.admin import (
+    dashboard_router,
+    orders_router,
+    users_router,
+    stock_router,
+    config_router,
+)
 
 router.include_router(auth_router)
 router.include_router(productos_router)
@@ -24,17 +30,21 @@ router.include_router(catalogo_router)
 router.include_router(direcciones_router)
 router.include_router(perfil_router)
 router.include_router(pedidos_router)
-router.include_router(admin_router)
 router.include_router(pagos_router)
+router.include_router(dashboard_router)
+router.include_router(orders_router)
+router.include_router(users_router)
+router.include_router(stock_router)
+router.include_router(config_router)
 
 
-@router.get("/health")
+@router.get("/health", tags=["Health"])
 def health_check():
     """Health check endpoint for API v1."""
     return {"status": "ok", "service": "food-store-api-v1"}
 
 
-@router.get("/")
+@router.get("/", tags=["Root"])
 def api_root():
     """API root endpoint."""
     return {"message": "Food Store API v1", "docs": "/docs"}

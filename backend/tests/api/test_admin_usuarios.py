@@ -9,7 +9,6 @@ from app.main import app
 from app.core.auth.tokens import create_access_token
 from app.core.auth.roles import Role
 from app.models.usuario import Usuario
-from app.models.rol import Rol
 from app.core.database import get_db
 
 
@@ -488,7 +487,7 @@ class TestAssignRole:
         assert data["rol_id"] == Role.STOCK.value
 
         # Verify DB
-        from app.core.repositories import UsuarioRepository
+        from app.domain.usuarios.repository import UsuarioRepository
         repo = UsuarioRepository(session)
         db_user = repo.get(target.id)
         assert db_user.rol_id == Role.STOCK.value

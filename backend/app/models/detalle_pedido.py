@@ -1,7 +1,8 @@
 # DetallePedido model
+from decimal import Decimal
+from sqlalchemy import Column, JSON, Numeric
 from sqlmodel import SQLModel, Field, Relationship
 from typing import Optional, TYPE_CHECKING
-from sqlalchemy import Column, JSON
 
 if TYPE_CHECKING:
     from app.models.pedido import Pedido
@@ -21,7 +22,7 @@ class DetallePedido(SQLModel, table=True):
 
     # Snapshots at creation time (immutable)
     nombre_snapshot: str = Field(max_length=255)
-    precio_snapshot: float = Field(default=0)
+    precio_snapshot: Decimal = Field(default=Decimal('0'), sa_column=Column(Numeric(10, 2)))
 
     cantidad: int = Field(default=1)
     # IDs of removed ingredients (PostgreSQL INTEGER[])
@@ -29,7 +30,7 @@ class DetallePedido(SQLModel, table=True):
     # On PostgreSQL this maps to JSON, on SQLite to TEXT.
     # Stores ingredient IDs that were removed from the item.
     exclusiones: list[int] = Field(default=[], sa_column=Column(JSON))
-    subtotal: float = Field(default=0)
+    subtotal: Decimal = Field(default=Decimal('0'), sa_column=Column(Numeric(10, 2)))
 
     # Relationship
     pedido: "Pedido" = Relationship(back_populates="detalles")

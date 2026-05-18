@@ -1,5 +1,4 @@
 # Tests for BaseRepository
-import pytest
 from datetime import datetime, timezone
 from app.core.repositories.base import BaseRepository
 from app.models.usuario import Usuario

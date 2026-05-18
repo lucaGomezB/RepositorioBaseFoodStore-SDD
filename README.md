@@ -1,8 +1,12 @@
-# 🍔 Food Store — E-Commerce de Alimentos
+# Food Store - E-Commerce de Alimentos
 
-Sistema integral de e-commerce para gestión de pedidos de comida con React, FastAPI y PostgreSQL.
+Sistema integral de e-commerce para gestion de pedidos de comida con React, FastAPI y PostgreSQL.
 
 **Spec-Driven Development (SDD)** · v5.0 · Arquitectura Feature-First
+
+| Backend Tests | Frontend Tests | TypeScript | Build | Cobertura |
+|---------------|---------------|------------|-------|-----------|
+| 254 ✅ | 81 ✅ | Clean ✅ | OK ✅ | 84% 📊 |
 
 ---
 
@@ -86,37 +90,41 @@ npm run dev
 food-store/
 ├── backend/                    # FastAPI + SQLModel + PostgreSQL
 │   ├── app/
-│   │   ├── core/              # Configuración compartida (config, database, security)
-│   │   └── modules/          # M��dulos feature-first (vertical slicing)
-│   │       ├── auth/         # Login, registro, refresh, logout
-│   │       ├── usuarios/     # CRUD usuarios, roles RBAC
-│   │       ├── categorias/   # Categorías jerárquicas con CTE
-│   │       ├── productos/    # CRUD productos, ingredientes
-│   │       ├── pedidos/      # FSM pedidos, auditoría append-only
-│   │       ├── pagos/        # Integración MercadoPago
-│   │       ├── direcciones/  # CRUD direcciones de entrega
-│   │       ├── admin/        # Dashboard, métricas
-│   │       └── refreshtokens/ # Gestión de refresh tokens
-│   ├── tests/                # Tests con pytest
+│   │   ├── api/              # Routers HTTP (10 endpoints thin)
+│   │   ├── core/             # Configuracion compartida (UoW, BaseRepository, config, security)
+│   │   ├── domain/           # Modulos feature-first (vertical slicing)
+│   │   │   ├── auth/        # Login, registro, refresh, logout
+│   │   │   ├── usuarios/    # CRUD usuarios, roles RBAC
+│   │   │   ├── categorias/  # Categorias jerarquicas con CTE
+│   │   │   ├── productos/   # CRUD productos, ingredientes
+│   │   │   ├── pedidos/     # FSM pedidos, auditoria append-only
+│   │   │   ├── pagos/       # Integracion MercadoPago
+│   │   │   ├── direcciones/ # CRUD direcciones de entrega
+│   │   │   └── admin/       # Dashboard, metricas
+│   │   ├── models/          # Modelos SQLModel (centralizados)
+│   │   └── db/              # Seed data
+│   ├── tests/                # Tests con pytest (254 tests)
 │   └── requirements.txt     # Dependencias Python
 │
 ├── frontend/                  # React + TypeScript + Vite
 │   ├── src/
 │   │   ├── app/             # App root: providers, routing
-│   │   ├── pages/           # Rutas/páginas principales
+│   │   ├── pages/           # Rutas/paginas principales (20 paginas)
 │   │   ├── features/        # Interacciones de usuario (independientes)
-│   │   ├── entities/        # Modelos de dominio + hooks básicos
+│   │   ├── entities/        # Modelos de dominio + hooks basicos
 │   │   └── shared/          # Utilidades: api, stores, components
-│   └── package.json
+│   ├── package.json
+│   └── .env.example
 │
-├── docs/                      # Documentación técnica
-│   ├── Descripcion.txt       # Visión general, actores, stack
-│   ├── Integrador.txt        # Arquitectura, ERD v5, API REST
-│   └── Historias_de_usario.txt  # US-000 a US-076
+├── docs/                      # Documentacion tecnica
+│   ├── Integrador.txt        # Especificacion tecnica SDD v5.0
+│   ├── Descripcion.txt       # Vision general, actores, stack
+│   ├── Historias_de_usuario.txt  # US-000 a US-076
+│   └── CHANGES.md            # Guia de workflow OPSX
 │
-└── openspec/                  # Artefactos SDD (generados por CLI)
-    ├── changes/              # Changes propuestos e implementados
-    └── specs/                # Especificaciones archivadas
+└── openspec/                  # Artefactos SDD (gestionados por CLI)
+    ├── changes/              # Changes archivados (39 cambios)
+    └── specs/                # Especificaciones del sistema
 ```
 
 ### Arquitectura Backend — Capas
@@ -149,9 +157,11 @@ Pages → Features → Entities → Shared
 
 | Archivo | Contenido |
 |---------|-----------|
-| [`docs/Descripcion.txt`](docs/Descripcion.txt) | Visión general, actores, stack tecnológico |
-| [`docs/Integrador.txt`](docs/Integrador.txt) | Arquitectura en capas, ERD v5, API REST |
+| [`docs/Integrador.txt`](docs/Integrador.txt) | Especificacion tecnica v5.0: arquitectura, ERD, API, rubrica |
+| [`docs/Descripcion.txt`](docs/Descripcion.txt) | Vision general, actores, stack tecnologico |
 | [`docs/Historias_de_usuario.txt`](docs/Historias_de_usuario.txt) | US-000 a US-076 completas |
+| [`docs/GUION_PRESENTACION.md`](docs/GUION_PRESENTACION.md) | Guion para video de demostracion |
+| [`docs/CHANGES.md`](docs/CHANGES.md) | Guia de workflow OPSX |
 | [`backend/README.md`](backend/README.md) | Setup detallado backend |
 | [`frontend/README.md`](frontend/README.md) | Setup detallado frontend |
 
@@ -237,4 +247,4 @@ MIT License — ver archivo [`LICENSE`](LICENSE)
 ---
 
 **Spec-Driven Development (SDD)** · Food Store v5.0  
-Última actualización: 2026-04-28
+Ultima actualizacion: 2026-05-17

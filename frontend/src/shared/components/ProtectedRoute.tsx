@@ -17,8 +17,14 @@ export default function ProtectedRoute({ requiredRoles }: ProtectedRouteProps) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // Authenticated but user data not loaded yet → still render (will fetch via API)
+  // This handles the race condition between login redirect and session init
+  if (!user) {
+    return <Outlet />;
+  }
+
   // Authenticated but insufficient role → 403
-  if (requiredRoles && user && !requiredRoles.includes(user.rol_id)) {
+  if (requiredRoles && !requiredRoles.includes(user.rol_id)) {
     return <ForbiddenPage />;
   }
 

@@ -1,5 +1,4 @@
 # Tests for input sanitization utilities
-import pytest
 from app.core.sanitization import (
     sanitize_string,
     sanitize_html,
@@ -8,7 +7,6 @@ from app.core.sanitization import (
     validate_file_type,
     sanitize_filename,
     ALLOWED_IMAGE_EXTENSIONS,
-    ALLOWED_DOCUMENT_EXTENSIONS,
 )
 
 

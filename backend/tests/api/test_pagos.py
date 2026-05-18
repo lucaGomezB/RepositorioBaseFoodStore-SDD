@@ -13,8 +13,6 @@ from app.core.auth.roles import Role
 from app.models.usuario import Usuario
 from app.models.pedido import Pedido
 from app.models.estado_pedido import EstadoPedido
-from app.models.detalle_pedido import DetallePedido
-from app.models.producto import Producto
 from app.core.database import get_db
 from app.core.config import settings
 
@@ -146,7 +144,7 @@ def create_pedido(session: Session, usuario_id: int, estado: str = "PENDIENTE") 
 class TestCrearPago:
     """Tests for POST /api/v1/pagos/crear"""
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_crear_pago_exitoso(self, mock_get_sdk, client, session):
         """7.1 Creación exitosa de pago."""
         seed_estados(session)
@@ -211,7 +209,7 @@ class TestCrearPago:
         assert response.status_code == 409
         assert "PENDIENTE" in response.json()["detail"]
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_crear_pago_idempotencia(self, mock_get_sdk, client, session):
         """7.4 Idempotencia: mismo pedido con diferentes idempotency_key crea pagos diferentes."""
         seed_estados(session)
@@ -261,7 +259,7 @@ class TestCrearPago:
 class TestObtenerPago:
     """Tests for GET /api/v1/pagos/{pedido_id}"""
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_obtener_pago_por_pedido(self, mock_get_sdk, client, session):
         """7.5 Consulta de pago por pedido_id."""
         seed_estados(session)
@@ -323,7 +321,7 @@ class TestObtenerPago:
 class TestWebhookPago:
     """Tests for POST /api/v1/pagos/webhook"""
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_webhook_pago_aprobado(self, mock_get_sdk, client, session):
         """7.6 Webhook con pago aprobado → transición a CONFIRMADO."""
         seed_estados(session)
@@ -363,7 +361,7 @@ class TestWebhookPago:
         session.refresh(pedido)
         assert pedido.estado_codigo == "CONFIRMADO"
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_webhook_pago_rechazado(self, mock_get_sdk, client, session):
         """7.7 Webhook con pago rechazado → pedido sigue PENDIENTE."""
         seed_estados(session)
@@ -399,7 +397,7 @@ class TestWebhookPago:
         session.refresh(pedido)
         assert pedido.estado_codigo == "PENDIENTE"
 
-    @patch("app.core.services.pago.PagoService._get_sdk")
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
     def test_webhook_duplicado(self, mock_get_sdk, client, session):
         """7.8 Webhook duplicado (mismo mp_payment_id y mismo estado)."""
         seed_estados(session)

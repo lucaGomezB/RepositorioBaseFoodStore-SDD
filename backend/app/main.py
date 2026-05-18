@@ -34,13 +34,13 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 
-@app.get("/")
+@app.get("/", tags=["Root"])
 def root():
     """Root endpoint."""
     return {"message": "Food Store API", "version": "1.0.0"}
 
 
-@app.get("/health")
+@app.get("/health", tags=["Health"])
 def health_check():
     """Health check endpoint."""
     return {"status": "ok"}

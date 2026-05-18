@@ -1,4 +1,5 @@
-﻿import { defineConfig } from 'vite'
+﻿/// <reference types="vitest" />
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
@@ -13,6 +14,12 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+    },
   },
   css: {
     postcss: {
@@ -23,5 +30,11 @@ export default defineConfig({
         require('autoprefixer'),
       ],
     },
+  },
+  test: {
+    globals: true,
+    environment: 'jsdom',
+    setupFiles: ['./src/setupTests.ts'],
+    css: true,
   },
 })

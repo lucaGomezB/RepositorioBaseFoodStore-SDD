@@ -1,18 +1,19 @@
 # Categorias Router
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, status, Query
 from sqlmodel import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.roles import Role
 from app.core.auth.authorization import require_roles
-from app.schemas.categoria import (
+from app.domain.categorias.schemas import (
     CategoriaCreate,
     CategoriaUpdate,
     CategoriaResponse,
     CategoriaTree,
 )
-from app.services.categoria import CategoriaService
+from app.domain.categorias.service import CategoriaService
 
 router = APIRouter(prefix="/categorias", tags=["Categorias"])
 
@@ -28,8 +29,9 @@ def read_categorias_tree(
     Get all categories as a hierarchical tree.
     Public - no authentication required.
     """
-    service = CategoriaService(session)
-    return service.get_tree(include_deleted=incluir_eliminados)
+    with UnitOfWork(session) as uow:
+        service = CategoriaService(uow)
+        return service.get_tree(include_deleted=incluir_eliminados)
 
 
 @router.get("/{categoria_id}", response_model=CategoriaResponse)
@@ -38,8 +40,9 @@ def read_categoria(categoria_id: int, session: Session = Depends(get_db)):
     Get a single category by ID.
     Public - no authentication required.
     """
-    service = CategoriaService(session)
-    return service.get_by_id(categoria_id)
+    with UnitOfWork(session) as uow:
+        service = CategoriaService(uow)
+        return service.get_by_id(categoria_id)
 
 
 # --- Protected Endpoints (STOCK, ADMIN) ---
@@ -51,8 +54,9 @@ def create_categoria(
     current_user=Depends(require_roles(Role.STOCK, Role.ADMIN)),
 ):
     """Create a new category. Requires STOCK or ADMIN role."""
-    service = CategoriaService(session)
-    return service.create(data)
+    with UnitOfWork(session) as uow:
+        service = CategoriaService(uow)
+        return service.create(data)
 
 
 @router.put("/{categoria_id}", response_model=CategoriaResponse)
@@ -63,8 +67,9 @@ def update_categoria(
     current_user=Depends(require_roles(Role.STOCK, Role.ADMIN)),
 ):
     """Update a category. Requires STOCK or ADMIN role."""
-    service = CategoriaService(session)
-    return service.update(categoria_id, data)
+    with UnitOfWork(session) as uow:
+        service = CategoriaService(uow)
+        return service.update(categoria_id, data)
 
 
 @router.delete("/{categoria_id}", response_model=CategoriaResponse)
@@ -74,5 +79,6 @@ def delete_categoria(
     current_user=Depends(require_roles(Role.STOCK, Role.ADMIN)),
 ):
     """Soft delete a category. Requires STOCK or ADMIN role."""
-    service = CategoriaService(session)
-    return service.soft_delete(categoria_id)
+    with UnitOfWork(session) as uow:
+        service = CategoriaService(uow)
+        return service.soft_delete(categoria_id)

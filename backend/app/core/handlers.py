@@ -1,7 +1,6 @@
 # Exception handlers for FastAPI
 import logging
 import traceback
-from typing import Any, Dict
 
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
@@ -9,7 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 
 from app.core.exceptions import AppException
-from app.core.schemas.error import ProblemDetail, create_problem_response, ValidationError
+from app.core.schemas.error import create_problem_response, ValidationError
 
 # Configure logging
 logger = logging.getLogger(__name__)

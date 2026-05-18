@@ -1,5 +1,5 @@
 # Unit of Work pattern for transaction management
-from typing import Dict, Type, Generic, Optional
+from typing import Dict, Type, Optional
 from sqlmodel import Session, SQLModel
 from app.core.repositories.base import BaseRepository
 

@@ -3,16 +3,15 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlmodel import Session
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.deps import get_current_user, TokenPayload
 from app.core.auth.authorization import require_roles
 from app.core.auth.roles import Role
-from app.core.schemas.pago import (
+from app.domain.pagos.schemas import (
     PagoCreateRequest,
     PagoRead,
-    PagoWebhookRequest,
-    PagoStatusResponse,
 )
-from app.core.services.pago import PagoService
+from app.domain.pagos.service import PagoService
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
@@ -32,13 +31,14 @@ def crear_pago(
     (PCI SAQ-A compliant — card data NEVER reaches our server).
     """
     try:
-        pago = PagoService.crear_pago(
-            session=session,
-            pedido_id=data.pedido_id,
-            usuario_id=current_user.user_id,
-            card_token=data.card_token,
-            payment_method_id=data.payment_method_id,
-        )
+        with UnitOfWork(session) as uow:
+            pago = PagoService.crear_pago(
+                uow=uow,
+                pedido_id=data.pedido_id,
+                usuario_id=current_user.user_id,
+                card_token=data.card_token,
+                payment_method_id=data.payment_method_id,
+            )
         return pago
     except HTTPException:
         raise
@@ -62,12 +62,13 @@ def obtener_pago(
     """
     is_admin = current_user.rol_id == Role.ADMIN.value
     try:
-        pago = PagoService.obtener_pago_por_pedido(
-            session=session,
-            pedido_id=pedido_id,
-            usuario_id=current_user.user_id,
-            is_admin=is_admin,
-        )
+        with UnitOfWork(session) as uow:
+            pago = PagoService.obtener_pago_por_pedido(
+                uow=uow,
+                pedido_id=pedido_id,
+                usuario_id=current_user.user_id,
+                is_admin=is_admin,
+            )
         return pago
     except HTTPException:
         raise
@@ -116,11 +117,12 @@ async def webhook_pago(
         webhook_type = body.get("type", "")
         webhook_data = body.get("data", {})
 
-        result = PagoService.procesar_webhook(
-            session=session,
-            webhook_type=webhook_type,
-            webhook_data=webhook_data,
-        )
+        with UnitOfWork(session) as uow:
+            result = PagoService.procesar_webhook(
+                uow=uow,
+                webhook_type=webhook_type,
+                webhook_data=webhook_data,
+            )
         return result
     except HTTPException:
         raise

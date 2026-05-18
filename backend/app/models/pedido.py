@@ -1,5 +1,7 @@
 # Pedido model
-from sqlmodel import SQLModel, Field, Relationship
+from decimal import Decimal
+from sqlalchemy import Numeric
+from sqlmodel import SQLModel, Field, Relationship, Column
 from datetime import datetime
 from typing import Optional, TYPE_CHECKING
 
@@ -22,8 +24,8 @@ class Pedido(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     usuario_id: int = Field(foreign_key="usuarios.id", nullable=False)
     estado_codigo: str = Field(foreign_key="estados_pedido.codigo", default="PENDIENTE")
-    total: float = Field(default=0)
-    costo_envio: float = Field(default=50.0)
+    total: Decimal = Field(default=Decimal('0'), sa_column=Column(Numeric(10, 2)))
+    costo_envio: Decimal = Field(default=Decimal('50.00'), sa_column=Column(Numeric(10, 2)))
     forma_pago_codigo: Optional[str] = Field(default=None, max_length=20)
 
     # Address snapshot at creation time (immutable)

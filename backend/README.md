@@ -35,58 +35,67 @@ uvicorn app.main:app --reload
 
 ---
 
-## 📁 Estructura
+## Estructura
 
 ```
 backend/
 ├── app/
-│   ├── __init__.py           # FastAPI app initialization
 │   ├── main.py              # FastAPI entry point
-│   ├── core/               # Configuración centralizada
+│   ├── api/                 # Routers HTTP (10 thin routers)
+│   ├── core/               # Configuracion centralizada
+│   │   ├── uow.py          # Unit of Work (commit/rollback automatico)
+│   │   ├── repositories/   # BaseRepository[T] generico
 │   │   ├── config.py       # Environment variables (pydantic-settings)
-│   │   ├── database.py    # SQLAlchemy session + engine
-│   │   └── security.py   # JWT, bcrypt utilities
-│   ├── modules/           # Feature-first modules
-│   │   ├── auth/         # Login, register, refresh, logout
-│   │   ├── usuarios/     # CRUD usuarios, RBAC
-│   │   ├── categorias/   # Categorías jerárquicas (CTE)
-│   │   ├── productos/    # CRUD productos, ingredientes
-│   │   ├── pedidos/     # FSM pedidos, audit trail
-│   │   ├── pagos/       # MercadoPago integration
-│   │   ├── direcciones/ # CRUD direcciones entrega
-│   │   ├── admin/       # Dashboard, métricas
-│   │   └── refreshtokens/ # Refresh token management
-│   └── tests/            # Tests con pytest
+│   │   ├── database.py     # SQLAlchemy session + engine
+│   │   └── security.py     # JWT, bcrypt utilities
+│   ├── domain/             # Modulos feature-first (vertical slicing)
+│   │   ├── auth/          # service, repository, schemas
+│   │   ├── usuarios/      # service, repository, schemas
+│   │   ├── categorias/    # service, repository, schemas
+│   │   ├── productos/     # service, repository, schemas
+│   │   ├── pedidos/       # service, repository, schemas
+│   │   ├── pagos/         # service, repository, schemas
+│   │   ├── direcciones/   # service, repository, schemas
+│   │   └── admin/         # service, schemas
+│   ├── models/            # Modelos SQLModel (centralizados, 16 tablas)
+│   └── db/                # Seed data (idempotente)
+├── tests/                  # 254 tests con pytest
+├── Makefile               # Comandos make (test, test-cov, dev)
 ├── requirements.txt       # Dependencias Python
 ├── alembic.ini           # Alembic configuration
 └── .env.example         # Environment variables template
 ```
 
-### Arquitectura — Capas
+### Arquitectura - Capas
 
 ```
-Router (HTTP) → Service (lógica) → Unit of Work (transacción) → Repository (datos) → Model (SQLModel)
+Router (HTTP) -> Service (logica) -> Unit of Work (transaccion) -> Repository (datos) -> Model (SQLModel)
 ```
 
-Cada módulo tiene su propia carpeta con:
-- `model.py` — Entidad SQLModel
-- `schemas.py` — Pydantic schemas (Create, Update, Read)
-- `repository.py` — Acceso a datos
-- `service.py` — Lógica de negocio
-- `router.py` — Endpoints HTTP
+- **Router**: HTTP puro, valida schemas, delega al Service. Sin logica de negocio.
+- **Service**: Logica de negocio stateless, orquesta via UoW. Lanza HTTPException.
+- **Unit of Work**: Gestiona transaccion, commit/rollback automatico. Ningun service hace session.commit() directo.
+- **Repository**: Acceso a BD, hereda de BaseRepository[T] generico.
+- **Model**: Entidades SQLModel con relaciones. Sin imports de capas superiores.
+
+Los modulos de dominio contienen: `service.py`, `repository.py` (si tiene queries especificas), `schemas.py`.
+Los modelos estan centralizados en `app/models/` para mantener la metadata de SQLAlchemy consistente.
 
 ---
 
-## 🔧 Comandos
+## Comandos
 
-| Comando | Descripción |
-|---------|-----------|
+| Comando | Descripcion |
+|---------|------------|
 | `uvicorn app.main:app --reload` | Desarrollo en http://localhost:8000 |
 | `alembic upgrade head` | Aplicar migraciones |
-| `alembic revision --autogenerate -m "message"` | Generar migración |
-| `alembic downgrade -1` | Revertir última migración |
-| `python -m app.db.seed` | Cargar datos iniciales |
-| `pytest` | Ejecutar tests |
+| `alembic revision --autogenerate -m "message"` | Generar migracion |
+| `alembic downgrade -1` | Revertir ultima migracion |
+| `python -m app.db.seed` | Cargar datos iniciales (idempotente) |
+| `pytest` | Ejecutar 254 tests |
+| `pytest --cov=app --cov-report=html` | Tests con cobertura |
+| `make test` | Tests via Makefile |
+| `make test-cov-html` | Tests + reporte HTML |
 
 ---
 
@@ -111,17 +120,26 @@ MERCADOPAGO_PUBLIC_KEY=TEST-xxx
 
 ---
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Activar entorno
 source .venv/bin/activate
 
-# Ejecutar tests
+# Ejecutar tests (254 tests)
 pytest
 
-# Coverage
+# Coverage (84% actual)
 pytest --cov=app --cov-report=html
+# Abrir htmlcov/index.html en el navegador
+
+# Coverage rapido
+pytest --cov=app --cov-report=term-missing
+
+# Via Makefile
+make test
+make test-cov
+make test-cov-html
 ```
 
 ---
@@ -131,7 +149,7 @@ pytest --cov=app --cov-report=html
 - **Archivos**: `snake_case.py`
 - **Funciones/variables**: `snake_case`
 - **Clases**: `PascalCase`
-- **Imports**: absolutos desde `app.modules`
+- **Imports**: absolutos desde `app.domain.<modulo>` (service, repository, schemas)
 - **Schemas Pydantic**: `{Entidad}{Tipo}` (ej: `UserCreate`, `UserRead`)
 - **HTTP Methods**: GET (lectura), POST (crear), PUT (reemplazar), PATCH (actualizar), DELETE (borrar)
 

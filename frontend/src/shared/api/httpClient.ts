@@ -1,13 +1,13 @@
-// Axios HTTP client with JWT interceptor and automatic token refresh
-import axios, {
-  AxiosError,
-  InternalAxiosRequestConfig,
-} from 'axios';
-import { useAuthStore } from '../stores/authStore';
-import { handleHttpError } from './errorInterceptor';
+// Axios HTTP client with httpOnly cookie auth
+//
+// Las cookies httpOnly se envian automaticamente con cada request
+// gracias a `withCredentials: true`. NO hay request interceptor para
+// adjuntar tokens — el backend es la autoridad, las cookies son el
+// medio de transporte.
+import axios from 'axios';
 
 const BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1';
+  import.meta.env.VITE_API_BASE_URL || '/api/v1';
 
 export const httpClient = axios.create({
   baseURL: BASE_URL,
@@ -16,118 +16,54 @@ export const httpClient = axios.create({
   },
 });
 
-// ---------------------------------------------------------------------------
-// Request interceptor – attach JWT token from authStore
-// ---------------------------------------------------------------------------
-httpClient.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    const { token } = useAuthStore.getState();
-    if (token && config.headers) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error),
-);
+// ===========================================================================
+// Auth helpers — funciones explicitas, sin magia en interceptors
+// ===========================================================================
 
-// ---------------------------------------------------------------------------
-// Response interceptor – on 401, try automatic token refresh with request
-// queue so that multiple concurrent 401s only trigger a single refresh call.
-// ---------------------------------------------------------------------------
-let isRefreshing = false;
-let failedQueue: Array<{
-  resolve: (token: string) => void;
-  reject: (error: unknown) => void;
-}> = [];
-
-const processQueue = (error: unknown, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token!);
-    }
-  });
-  failedQueue = [];
-};
-
-// Extend Axios config to carry our custom retry flag
-interface RequestConfigWithRetry extends InternalAxiosRequestConfig {
-  _retry?: boolean;
+export interface LoginPayload {
+  email: string;
+  password: string;
 }
 
-httpClient.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
-    const originalRequest = error.config as RequestConfigWithRetry | undefined;
+export interface AuthUser {
+  id: number;
+  email: string;
+  nombre: string;
+  apellido: string;
+  rol_id: number;
+  activo: boolean;
+}
 
-    // Only handle 401 errors that have a config and haven't been retried yet
-    if (
-      !originalRequest ||
-      error.response?.status !== 401 ||
-      originalRequest._retry
-    ) {
-      // Show toast for non-401 HTTP errors (401 is handled by refresh flow)
-      handleHttpError(error);
-      return Promise.reject(error);
-    }
+export interface LoginResult {
+  user: AuthUser;
+}
 
-    // Already refreshing → queue this request to be replayed later
-    if (isRefreshing) {
-      return new Promise<string>((resolve, reject) => {
-        failedQueue.push({
-          resolve: (token: string) => {
-            if (originalRequest.headers) {
-              originalRequest.headers.Authorization = `Bearer ${token}`;
-            }
-            resolve(httpClient(originalRequest));
-          },
-          reject,
-        });
-      });
-    }
+/** Login: POST /auth/login → el backend setea cookies httpOnly + devuelve user */
+export async function apiLogin(payload: LoginPayload): Promise<LoginResult> {
+  const { data } = await httpClient.post('/auth/login', payload);
+  return { user: data.user as AuthUser };
+}
 
-    // Start the refresh flow
-    originalRequest._retry = true;
-    isRefreshing = true;
+/** Refresh: POST /auth/refresh → el backend rota cookies httpOnly */
+export async function apiRefresh(): Promise<void> {
+  await httpClient.post('/auth/refresh', {});
+}
 
-    const { refreshToken } = useAuthStore.getState();
+/** Logout: POST /auth/logout → backend revoca refresh token + limpia cookies */
+export async function apiLogout(): Promise<void> {
+  try {
+    await httpClient.post('/auth/logout', {});
+  } catch {
+    // Si el logout falla (ej: token ya expirado), ignoramos
+  }
+}
 
-    if (!refreshToken) {
-      // No refresh token available → force logout
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
-      return Promise.reject(error);
-    }
-
-    try {
-      const response = await axios.post(`${BASE_URL}/auth/refresh`, {
-        refresh_token: refreshToken,
-      });
-
-      const { access_token, refresh_token: newRefreshToken } = response.data;
-      const { user } = useAuthStore.getState();
-
-      // Update store with fresh tokens (user remains the same)
-      useAuthStore.getState().setAuth(access_token, newRefreshToken, user!);
-
-      // Retry the original request with the new token
-      if (originalRequest.headers) {
-        originalRequest.headers.Authorization = `Bearer ${access_token}`;
-      }
-
-      // Replay all queued requests
-      processQueue(null, access_token);
-
-      return httpClient(originalRequest);
-    } catch (refreshError) {
-      // Refresh failed → reject all queued and force logout
-      processQueue(refreshError, null);
-      useAuthStore.getState().logout();
-      window.location.href = '/login';
-      return Promise.reject(refreshError);
-    } finally {
-      isRefreshing = false;
-    }
-  },
-);
+/** Me: GET /auth/me → devuelve el usuario si las cookies son validas */
+export async function apiMe(): Promise<AuthUser | null> {
+  try {
+    const { data } = await httpClient.get('/auth/me');
+    return data as AuthUser;
+  } catch {
+    return null;
+  }
+}

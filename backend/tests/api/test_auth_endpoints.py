@@ -7,9 +7,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 from app.core.auth.tokens import create_access_token, create_refresh_token
-from app.core.repositories import RefreshTokenRepository
+from app.domain.auth.repository import RefreshTokenRepository
 from app.models.usuario import Usuario
-from app.models.refresh_token import RefreshToken
 from app.core.database import get_db
 
 
@@ -97,7 +96,7 @@ class TestRefreshEndpoint:
         """
         Scenario: Valid refresh token request
         WHEN a user sends a valid refresh token to POST /api/v1/auth/refresh
-        THEN the system SHALL return a new access_token and refresh_token
+        THEN the system SHALL return new httpOnly cookies
         AND the old refresh token SHALL be marked as revoked in the database
         """
         # Create unique tokens
@@ -120,13 +119,25 @@ class TestRefreshEndpoint:
         # Assert response is successful
         assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
         data = response.json()
-        assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
         assert "expires_in" in data
+        assert "user" in data
 
-        # Verify new tokens are different from old
-        assert data["refresh_token"] != refresh_token
+        # Verify new tokens are in cookies (not in body)
+        set_cookie_header = response.headers.get("set-cookie", "")
+        assert "access_token=" in set_cookie_header, "access_token cookie not set"
+        assert "refresh_token=" in set_cookie_header, "refresh_token cookie not set"
+        assert "httponly" in set_cookie_header.lower(), "Cookie is not httpOnly"
+
+        # Extract the new refresh_token from cookie header for verification
+        # Parse set-cookie to get the refresh_token value
+        import re
+        refresh_match = re.search(r"refresh_token=([^;]+)", set_cookie_header)
+        assert refresh_match is not None, "Could not find refresh_token in cookies"
+        new_refresh_token = refresh_match.group(1)
+
+        # Verify new refresh token is different from old
+        assert new_refresh_token != refresh_token
 
         # Verify old token is revoked in database
         stored_token = refresh_token_repo.get_valid_token(refresh_token)
@@ -216,6 +227,8 @@ class TestRefreshEndpoint:
         Test that refresh token rotation works correctly.
         After refresh, the old token should be invalid and new token should work.
         """
+        import re
+
         auth_tokens = create_unique_tokens(
             test_user.id, test_user.email, test_user.rol_id
         )
@@ -226,13 +239,20 @@ class TestRefreshEndpoint:
         expires_at = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
         refresh_token_repo.create_token(refresh_token, test_user.id, expires_at)
 
+        # Helper to extract refresh_token from set-cookie header
+        def _extract_refresh_token(response) -> str:
+            set_cookie = response.headers.get("set-cookie", "")
+            match = re.search(r"refresh_token=([^;]+)", set_cookie)
+            assert match is not None, "refresh_token cookie not found"
+            return match.group(1)
+
         # First refresh
         response1 = client.post(
             "/api/v1/auth/refresh",
             json={"refresh_token": refresh_token}
         )
         assert response1.status_code == 200, f"First refresh failed: {response1.text}"
-        new_refresh_token_1 = response1.json()["refresh_token"]
+        new_refresh_token_1 = _extract_refresh_token(response1)
 
         # Old token should be revoked
         stored_old = refresh_token_repo.get_valid_token(refresh_token)
@@ -244,7 +264,7 @@ class TestRefreshEndpoint:
             json={"refresh_token": new_refresh_token_1}
         )
         assert response2.status_code == 200, f"Second refresh failed: {response2.text}"
-        new_refresh_token_2 = response2.json()["refresh_token"]
+        new_refresh_token_2 = _extract_refresh_token(response2)
 
         # Both new tokens should be different
         assert new_refresh_token_1 != new_refresh_token_2

@@ -1,7 +1,6 @@
 # Input sanitization utilities
 import re
 import html
-from typing import Optional
 from fastapi import UploadFile
 
 

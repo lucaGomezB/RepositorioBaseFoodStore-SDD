@@ -85,15 +85,16 @@ Cada capa solo puede importar de capas inferiores. Nunca al revés.
 
 ---
 
-## 🛠️ Comandos
+## Comandos
 
-| Comando | Descripción |
-|---------|-----------|
+| Comando | Descripcion |
+|---------|------------|
 | `npm run dev` | Desarrollo en http://localhost:5173 |
-| `npm run build` | Build de producción |
+| `npm run build` | Build de produccion |
 | `npm run preview` | Preview del build |
-| `npm run lint` | ESLint |
-| `npm run typecheck` | TypeScript strict check |
+| `npx vitest run` | Ejecutar 81 tests (10 archivos) |
+| `npx vitest` | Modo watch para desarrollo |
+| `npx tsc --noEmit` | TypeScript strict check |
 
 ---
 

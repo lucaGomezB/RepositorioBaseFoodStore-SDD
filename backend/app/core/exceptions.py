@@ -70,7 +70,7 @@ class NotFoundException(AppException):
 
     def __init__(self, detail: str = "Resource not found", resource: Optional[str] = None):
         self.resource = resource
-        error_type = f"https://api.foodstore.com/errors/not-found"
+        error_type = "https://api.foodstore.com/errors/not-found"
         if resource:
             error_type = f"https://api.foodstore.com/errors/{resource}-not-found"
         super().__init__(

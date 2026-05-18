@@ -4,15 +4,16 @@ from sqlmodel import Session
 from typing import List
 
 from app.core.database import get_db
+from app.core.uow import UnitOfWork
 from app.core.auth.deps import TokenPayload
 from app.core.auth.authorization import require_roles
 from app.core.auth.roles import Role
-from app.core.schemas.direccion import (
+from app.domain.direcciones.schemas import (
     DireccionCreate,
     DireccionUpdate,
     DireccionResponse,
 )
-from app.core.services.direccion import DireccionService
+from app.domain.direcciones.service import DireccionService
 
 router = APIRouter(prefix="/direcciones", tags=["Direcciones"])
 
@@ -27,7 +28,8 @@ def crear_direccion(
     
     If this is the user's first address, it is auto-marked as default (RN-DI01).
     """
-    return DireccionService.crear(session, current_user.user_id, data.model_dump())
+    with UnitOfWork(session) as uow:
+        return DireccionService.crear(uow, current_user.user_id, data.model_dump())
 
 
 @router.get("/", response_model=List[DireccionResponse])
@@ -36,7 +38,8 @@ def listar_direcciones(
     current_user: TokenPayload = Depends(require_roles(Role.CLIENT, Role.ADMIN)),
 ):
     """List all addresses for the current user."""
-    return DireccionService.listar_por_usuario(session, current_user.user_id)
+    with UnitOfWork(session) as uow:
+        return DireccionService.listar_por_usuario(uow, current_user.user_id)
 
 
 @router.put("/{direccion_id}", response_model=DireccionResponse)
@@ -47,9 +50,10 @@ def actualizar_direccion(
     current_user: TokenPayload = Depends(require_roles(Role.CLIENT, Role.ADMIN)),
 ):
     """Update a delivery address. Validates ownership - returns 404 if not found or not owned."""
-    direccion = DireccionService.actualizar(
-        session, direccion_id, current_user.user_id, data.model_dump(exclude_unset=True)
-    )
+    with UnitOfWork(session) as uow:
+        direccion = DireccionService.actualizar(
+            uow, direccion_id, current_user.user_id, data.model_dump(exclude_unset=True)
+        )
     if not direccion:
         raise HTTPException(status_code=404, detail="Dirección no encontrada")
     return direccion
@@ -62,7 +66,9 @@ def eliminar_direccion(
     current_user: TokenPayload = Depends(require_roles(Role.CLIENT, Role.ADMIN)),
 ):
     """Delete a delivery address. Validates ownership - returns 404 if not found or not owned."""
-    if not DireccionService.eliminar(session, direccion_id, current_user.user_id):
+    with UnitOfWork(session) as uow:
+        deleted = DireccionService.eliminar(uow, direccion_id, current_user.user_id)
+    if not deleted:
         raise HTTPException(status_code=404, detail="Dirección no encontrada")
     return None
 
@@ -76,9 +82,10 @@ def marcar_predeterminada(
     """Set an address as default. Atomically unsets the previous default (RN-DI02).
     Returns 404 if address not found or not owned.
     """
-    direccion = DireccionService.marcar_predeterminada(
-        session, direccion_id, current_user.user_id
-    )
+    with UnitOfWork(session) as uow:
+        direccion = DireccionService.marcar_predeterminada(
+            uow, direccion_id, current_user.user_id
+        )
     if not direccion:
         raise HTTPException(status_code=404, detail="Dirección no encontrada")
     return direccion
