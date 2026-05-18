@@ -1,6 +1,6 @@
 // LoginPage — User authentication with httpOnly cookies
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { apiLogin } from '../shared/api/httpClient';
 import { useAuthStore } from '../shared/stores/authStore';
 
@@ -11,9 +11,11 @@ export const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const setUser = useAuthStore((s) => s.setUser);
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  const registrado = searchParams.get('registrado');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,6 +48,12 @@ export const LoginPage = () => {
         <h1 className="text-2xl font-bold text-center text-gray-900 mb-6">
           Iniciar Sesion
         </h1>
+
+        {registrado && (
+          <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4 text-sm text-center">
+            Cuenta creada correctamente. Iniciá sesión con tu email y contraseña.
+          </div>
+        )}
 
         {error && (
           <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4 text-sm text-center">

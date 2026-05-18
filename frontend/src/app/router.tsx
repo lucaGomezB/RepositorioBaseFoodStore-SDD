@@ -4,6 +4,7 @@ import AppLayout from '../shared/components/AppLayout';
 import ProtectedRoute from '../shared/components/ProtectedRoute';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
+import RegistroPage from '../pages/RegistroPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { ProfilePage } from '../pages/ProfilePage';
 import CartPage from '../pages/CartPage';
@@ -84,5 +85,6 @@ export const routes: RouteObject[] = [
   },
   // Standalone routes (no sidebar) — always public
   { path: 'login', element: <LoginPage /> },
+  { path: 'registro', element: <RegistroPage /> },
   { path: '*', element: <NotFoundPage /> },
 ];
