@@ -324,7 +324,14 @@ def register(
     session.commit()
     session.refresh(user)
     
-    return user
+    return {
+        "id": user.id,
+        "email": user.email,
+        "nombre": user.nombre,
+        "apellido": user.apellido,
+        "roles": user.rol_ids,
+        "activo": user.activo,
+    }
 
 
 @router.post("/refresh")
