@@ -9,7 +9,7 @@
 
 > Mostrar: `http://localhost:5173` — Home page con catalogo de productos
 
-"Bienvenidos a **Food Store**, un sistema de e-commerce para gestion de pedidos de comida. Usa **React + TypeScript** en el frontend, **FastAPI + PostgreSQL** en el backend. Todo el proyecto se desarrollo con **Spec-Driven Development**: primero la especificacion, despues el codigo. Actualmente tenemos **254 tests en backend, 80 en frontend**, y **cobertura del 84%**."
+"Bienvenidos a **Food Store**, un sistema de e-commerce para gestión de pedidos de comida. Usa **React + TypeScript** en el frontend, **FastAPI + PostgreSQL** en el backend. Todo el proyecto se desarrolló con **Spec-Driven Development**: Primero la especificación, después el código. Somos Luca Gómez y Genaro Busto
 
 ---
 

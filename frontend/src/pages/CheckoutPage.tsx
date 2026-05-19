@@ -1,9 +1,8 @@
-// CheckoutPage — Payment checkout with card form
-import { useState, useCallback } from 'react';
+// CheckoutPage — Payment confirmation with simple mock payment (no MercadoPago)
+import { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { httpClient } from '@/shared/api/httpClient';
-import { CardPaymentForm, useCreatePayment } from '@/features/payments';
 import { useCartStore } from '@/shared/stores/cartStore';
 
 // Minimal pedido type for checkout summary
@@ -36,7 +35,6 @@ export default function CheckoutPage() {
   const [paymentError, setPaymentError] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const createPayment = useCreatePayment();
   const clearCart = useCartStore((s) => s.clearCart);
 
   // Fetch order details for summary
@@ -49,39 +47,27 @@ export default function CheckoutPage() {
     enabled: pedidoId > 0,
   });
 
-  const handleCardToken = useCallback(
-    async (cardToken: string) => {
-      if (!pedidoId) return;
+  const handleConfirmPayment = async () => {
+    if (!pedidoId) return;
 
-      setIsProcessing(true);
-      setPaymentError(null);
+    setIsProcessing(true);
+    setPaymentError(null);
 
-      try {
-        await createPayment.mutateAsync({
-          pedido_id: pedidoId,
-          card_token: cardToken,
-        });
+    try {
+      // Mock payment — no MercadoPago
+      await httpClient.post('/pagos/mock', { pedido_id: pedidoId });
 
-        // Clear cart after successful payment creation
-        clearCart();
-
-        // Navigate to confirmation page
-        navigate(`/pedidos/${pedidoId}/confirmacion`);
-      } catch (err: unknown) {
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Error al procesar el pago. Intentá de nuevo.';
-        setPaymentError(message);
-        setIsProcessing(false);
-      }
-    },
-    [pedidoId, createPayment, clearCart, navigate],
-  );
-
-  const handleTokenError = useCallback((error: string) => {
-    setPaymentError(error);
-  }, []);
+      clearCart();
+      navigate(`/mis-pedidos/${pedidoId}`);
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Error al procesar el pago. Intentá de nuevo.';
+      setPaymentError(message);
+      setIsProcessing(false);
+    }
+  };
 
   // ── Loading state ──
   if (isLoading) {
@@ -113,7 +99,7 @@ export default function CheckoutPage() {
     );
   }
 
-  // ── Checkout form ──
+  // ── Checkout confirmation ──
   return (
     <div className="p-6 max-w-3xl mx-auto">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Confirmar y pagar</h1>
@@ -159,9 +145,9 @@ export default function CheckoutPage() {
         </div>
       </div>
 
-      {/* Payment form */}
+      {/* Payment confirmation */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h2 className="font-semibold text-gray-900 mb-3">Datos de pago</h2>
+        <h2 className="font-semibold text-gray-900 mb-3">Confirmar pago</h2>
 
         {paymentError && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">
@@ -169,18 +155,20 @@ export default function CheckoutPage() {
           </div>
         )}
 
-        <CardPaymentForm
-          onToken={handleCardToken}
-          onError={handleTokenError}
+        <button
+          onClick={handleConfirmPayment}
           disabled={isProcessing}
-        />
-
-        {isProcessing && (
-          <div className="mt-4 flex items-center justify-center text-sm text-gray-500">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2" />
-            Procesando pago...
-          </div>
-        )}
+          className="w-full bg-green-600 text-white py-3 rounded-lg font-medium hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-lg"
+        >
+          {isProcessing ? (
+            <span className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
+              Procesando...
+            </span>
+          ) : (
+            `Pagar $${pedido.total.toFixed(2)}`
+          )}
+        </button>
       </div>
     </div>
   );

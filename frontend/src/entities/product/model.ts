@@ -22,6 +22,13 @@ export interface ProductoCreate {
   disponible?: boolean;
   imagenes_url?: string | null;
   tiempo_prep_min?: number | null;
+  categorias_ids: number[];
+  ingredientes: Array<{
+    ingrediente_id: number;
+    es_removible?: boolean;
+    es_principal?: boolean;
+    orden?: number;
+  }>;
 }
 
 export interface ProductoUpdate {

@@ -1,7 +1,9 @@
 // ProductoFormPage — create/edit page with TanStack Form + Zod validation
 import { useNavigate, useParams } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from '@tanstack/react-form';
+import { useQuery } from '@tanstack/react-query';
+import { httpClient } from '@/shared/api/httpClient';
 import {
   useProducto,
   useCreateProducto,
@@ -10,7 +12,25 @@ import {
 } from '../entities/product';
 import { useUIStore } from '../shared/stores/uiStore';
 
-/** Helper to render the first validation error string regardless of error shape */
+// ---------------------------------------------------------------------------
+// Types for fetched selector data
+// ---------------------------------------------------------------------------
+interface CategoriaOption {
+  id: number;
+  nombre: string;
+}
+
+interface IngredienteOption {
+  id: number;
+  nombre: string;
+  es_alergeno: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Render the first validation error string regardless of error shape */
 function firstError(errors: unknown): string | null {
   if (!Array.isArray(errors) || errors.length === 0) return null;
   const e = errors[0];
@@ -19,18 +39,57 @@ function firstError(errors: unknown): string | null {
   return String(e);
 }
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 export default function ProductoFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEdit = id !== undefined;
   const navigate = useNavigate();
   const addToast = useUIStore((s) => s.addToast);
 
+  // ── Product queries ──
   const { data: producto, isLoading: loadingProducto } = useProducto(
     isEdit ? Number(id) : undefined,
   );
   const createProducto = useCreateProducto();
   const updateProducto = useUpdateProducto();
 
+  // ── Fetch categories for selector ──
+  const { data: categorias = [], isLoading: loadingCategorias } = useQuery({
+    queryKey: ['categorias', 'all'],
+    queryFn: async () => {
+      const { data } = await httpClient.get<CategoriaOption[]>('/categorias/');
+      return data;
+    },
+  });
+
+  // ── Fetch ingredients for selector ──
+  const { data: ingredientes = [], isLoading: loadingIngredientes } = useQuery({
+    queryKey: ['ingredientes', 'all'],
+    queryFn: async () => {
+      const { data } = await httpClient.get<IngredienteOption[]>('/ingredientes/');
+      return data;
+    },
+  });
+
+  // ── Selected category IDs (local state, not TanStack Form) ──
+  const [selectedCategoriaIds, setSelectedCategoriaIds] = useState<number[]>([]);
+  const [selectedIngredienteIds, setSelectedIngredienteIds] = useState<number[]>([]);
+
+  const toggleCategoria = (catId: number) => {
+    setSelectedCategoriaIds((prev) =>
+      prev.includes(catId) ? prev.filter((id) => id !== catId) : [...prev, catId],
+    );
+  };
+
+  const toggleIngrediente = (ingId: number) => {
+    setSelectedIngredienteIds((prev) =>
+      prev.includes(ingId) ? prev.filter((id) => id !== ingId) : [...prev, ingId],
+    );
+  };
+
+  // ── Form ──
   const form = useForm({
     defaultValues: {
       nombre: '',
@@ -41,24 +100,29 @@ export default function ProductoFormPage() {
       imagenes_url: '',
       tiempo_prep_min: 0,
     },
-    // Validate with Zod on submit
-    validators: {
-      onSubmit: ({ value }) => {
-        const result = ProductoFormSchema.safeParse(value);
-        if (!result.success) {
-          // Return a form-level error string; individual fields show meta.errors
-          return result.error.issues.map((i) => i.message).join('. ');
-        }
-        return undefined;
-      },
-    },
     onSubmit: async ({ value }) => {
-      // Double-check with Zod before sending
+      // Validate with Zod
       const parsed = ProductoFormSchema.safeParse(value);
       if (!parsed.success) {
         addToast({
           type: 'error',
           message: parsed.error.issues[0]?.message || 'Error de validación',
+        });
+        return;
+      }
+
+      // Validate categories & ingredients (not in Zod schema)
+      if (selectedCategoriaIds.length === 0) {
+        addToast({
+          type: 'error',
+          message: 'Seleccioná al menos una categoría',
+        });
+        return;
+      }
+      if (selectedIngredienteIds.length === 0) {
+        addToast({
+          type: 'error',
+          message: 'Seleccioná al menos un ingrediente',
         });
         return;
       }
@@ -87,6 +151,10 @@ export default function ProductoFormPage() {
             disponible: parsed.data.disponible,
             imagenes_url: parsed.data.imagenes_url || null,
             tiempo_prep_min: parsed.data.tiempo_prep_min,
+            categorias_ids: selectedCategoriaIds,
+            ingredientes: selectedIngredienteIds.map((ingId) => ({
+              ingrediente_id: ingId,
+            })),
           });
           addToast({ type: 'success', message: 'Producto creado correctamente' });
         }
@@ -353,6 +421,93 @@ export default function ProductoFormPage() {
             </div>
           )}
         </form.Field>
+
+        {/* ── Categorías selector ── */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            Categorías
+            <span className="text-red-500 ml-0.5" aria-label="requerido">*</span>
+          </h3>
+          {loadingCategorias ? (
+            <p className="text-sm text-gray-400">Cargando categorías...</p>
+          ) : categorias.length === 0 ? (
+            <p className="text-sm text-amber-600">
+              No hay categorías disponibles. Creá una primero.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {categorias.map((cat) => (
+                <label
+                  key={cat.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded border text-sm cursor-pointer transition-colors ${
+                    selectedCategoriaIds.includes(cat.id)
+                      ? 'border-blue-500 bg-blue-50 text-blue-800'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoriaIds.includes(cat.id)}
+                    onChange={() => toggleCategoria(cat.id)}
+                    className="rounded"
+                  />
+                  {cat.nombre}
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedCategoriaIds.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              Seleccioná al menos una categoría
+            </p>
+          )}
+        </div>
+
+        {/* ── Ingredientes selector ── */}
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h3 className="text-sm font-semibold text-gray-900 mb-2">
+            Ingredientes
+            <span className="text-red-500 ml-0.5" aria-label="requerido">*</span>
+          </h3>
+          {loadingIngredientes ? (
+            <p className="text-sm text-gray-400">Cargando ingredientes...</p>
+          ) : ingredientes.length === 0 ? (
+            <p className="text-sm text-amber-600">
+              No hay ingredientes disponibles. Creá uno primero.
+            </p>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {ingredientes.map((ing) => (
+                <label
+                  key={ing.id}
+                  className={`flex items-center gap-2 px-3 py-2 rounded border text-sm cursor-pointer transition-colors ${
+                    selectedIngredienteIds.includes(ing.id)
+                      ? 'border-blue-500 bg-blue-50 text-blue-800'
+                      : 'border-gray-200 hover:border-gray-300'
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIngredienteIds.includes(ing.id)}
+                    onChange={() => toggleIngrediente(ing.id)}
+                    className="rounded"
+                  />
+                  <span>{ing.nombre}</span>
+                  {ing.es_alergeno && (
+                    <span className="text-xs text-red-500 font-medium" title="Alérgeno">
+                      ⚠
+                    </span>
+                  )}
+                </label>
+              ))}
+            </div>
+          )}
+          {selectedIngredienteIds.length === 0 && (
+            <p className="text-xs text-amber-600 mt-1">
+              Seleccioná al menos un ingrediente
+            </p>
+          )}
+        </div>
 
         {/* ── Submit / Cancel ── */}
         <div className="flex gap-3 pt-4">

@@ -47,7 +47,7 @@ export default function OrderConfirmationPage() {
 
   const handleRetry = () => {
     if (pedidoId) {
-      navigate(`/checkout?pedido_id=${pedidoId}`);
+      navigate(`/pago?pedido_id=${pedidoId}`);
     }
   };
 

@@ -3,6 +3,49 @@ import type { Categoria, CategoriaCreate } from "../api/categorias";
 import { categoriasApi } from "../api/categorias";
 import { exportToExcel } from "../utils/exportExcel";
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+/** Tree node as returned by the backend API */
+interface CategoriaTree {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  parent_id: number | null;
+  orden_display: number;
+  subcategorias: CategoriaTree[];
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** Flatten a category tree into a flat array with level indentation info */
+function flattenTree(nodes: CategoriaTree[], parentId: number | null = null, level = 0): Categoria[] {
+  const result: Categoria[] = [];
+  for (const node of nodes) {
+    result.push({ id: node.id, nombre: node.nombre, descripcion: node.descripcion, parent_id: parentId, orden_display: node.orden_display });
+    if (node.subcategorias.length > 0) {
+      result.push(...flattenTree(node.subcategorias, node.id, level + 1));
+    }
+  }
+  return result;
+}
+
+/** Build a map of category id → category name for quick lookup */
+function buildNameMap(cats: Categoria[]): Record<number, string> {
+  const map: Record<number, string> = {};
+  for (const c of cats) {
+    map[c.id] = c.nombre;
+  }
+  return map;
+}
+
+// ---------------------------------------------------------------------------
+// State
+// ---------------------------------------------------------------------------
+
 const PAGE_SIZE = 10;
 
 interface State {
@@ -60,65 +103,36 @@ const init: State = {
   editingId: null, showForm: false, form: emptyForm,
 };
 
-/* ── Popup de Subcategorías ── */
-function SubcategoriasPopup({ categoria, allCategorias, onClose }: {
-  categoria: Categoria; allCategorias: Categoria[]; onClose: () => void;
-}) {
-  const subcats = allCategorias.filter((c) => c.parent_id === categoria.id);
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded p-6 w-full max-w-md max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-bold">Subcategorías de "{categoria.nombre}"</h2>
-          <button onClick={onClose} className="text-gray-500 text-xl cursor-pointer">✕</button>
-        </div>
-        {subcats.length === 0 ? (
-          <p className="text-gray-500">Sin subcategorías.</p>
-        ) : (
-          <table className="w-full border-collapse border">
-            <thead><tr className="bg-gray-200">
-              <th className="border p-2 text-left">ID</th>
-              <th className="border p-2 text-left">Nombre</th>
-              <th className="border p-2 text-left">Descripción</th>
-            </tr></thead>
-            <tbody>
-              {subcats.map((sc) => (
-                <tr key={sc.id}>
-                  <td className="border p-2">{sc.id}</td>
-                  <td className="border p-2">{sc.nombre}</td>
-                  <td className="border p-2">{sc.descripcion ?? "-"}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-    </div>
-  );
-}
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function CategoriasCRUD() {
   const [state, dispatch] = useReducer(reducer, init);
   const [allCats, setAllCats] = useState<Categoria[]>([]);
-  const [subcatPopup, setSubcatPopup] = useState<Categoria | null>(null);
+  const [nameMap, setNameMap] = useState<Record<number, string>>({});
 
+  /** Fetch categories tree from API and flatten it */
   const fetchData = useCallback(async () => {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
-      const data = await categoriasApi.getAll(state.page * PAGE_SIZE, PAGE_SIZE);
-      dispatch({ type: "SET_ITEMS", payload: data });
+      const tree = await categoriasApi.getAll(0, 100) as unknown as CategoriaTree[];
+      const flat = flattenTree(tree);
+      dispatch({ type: "SET_ITEMS", payload: flat });
+      setAllCats(flat);
+      setNameMap(buildNameMap(flat));
     } catch (e) {
       dispatch({ type: "SET_ERROR", payload: (e as Error).message });
     }
-  }, [state.page]);
-
-  // Fetch all categories once for subcategory detection
-  useEffect(() => {
-    categoriasApi.getAll(0, 1000).then(setAllCats);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  /** Pre-compute which categories have children (in the flat list) */
+  const hasChildren = useCallback(
+    (catId: number) => allCats.some((c) => c.parent_id === catId),
+    [allCats],
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -130,7 +144,6 @@ export default function CategoriasCRUD() {
       }
       dispatch({ type: "CLOSE_FORM" });
       fetchData();
-      categoriasApi.getAll(0, 1000).then(setAllCats); // refresh allCats
     } catch (err) {
       dispatch({ type: "SET_ERROR", payload: (err as Error).message });
     }
@@ -141,18 +154,22 @@ export default function CategoriasCRUD() {
     try {
       await categoriasApi.delete(id);
       fetchData();
-      categoriasApi.getAll(0, 1000).then(setAllCats);
     } catch (err) {
       dispatch({ type: "SET_ERROR", payload: (err as Error).message });
     }
   };
 
-  const filtered = state.items.filter((c) =>
-    c.nombre.toLowerCase().includes(state.filter.toLowerCase())
+  // Paginate + filter in-memory
+  const allFiltered = allCats.filter((c) =>
+    c.nombre.toLowerCase().includes(state.filter.toLowerCase()),
   );
+  const pageStart = state.page * PAGE_SIZE;
+  const pageItems = allFiltered.slice(pageStart, pageStart + PAGE_SIZE);
 
-  // Pre-compute which categories have children
-  const hasChildren = (catId: number) => allCats.some((c) => c.parent_id === catId);
+  // Exclude current editing category from parent dropdown (can't be its own parent)
+  const parentOptions = state.editingId
+    ? allCats.filter((c) => c.id !== state.editingId)
+    : allCats;
 
   return (
     <div className="p-4">
@@ -165,7 +182,7 @@ export default function CategoriasCRUD() {
           className="border px-3 py-1 rounded" />
         <button onClick={() => dispatch({ type: "START_CREATE" })}
           className="bg-green-600 text-white px-4 py-1 rounded cursor-pointer">+ Nueva</button>
-        <button onClick={() => exportToExcel(filtered.map(({ id, nombre, descripcion, parent_id, orden_display }) => ({
+        <button onClick={() => exportToExcel(allFiltered.map(({ id, nombre, descripcion, parent_id, orden_display }) => ({
               id, nombre, descripcion: descripcion ?? "", parent_id: parent_id ?? "", orden_display,
             })), "categorias")}
           className="bg-blue-600 text-white px-4 py-1 rounded cursor-pointer">Exportar Excel</button>
@@ -186,11 +203,18 @@ export default function CategoriasCRUD() {
               className="border px-2 py-1 rounded w-full" />
           </div>
           <div>
-            <label className="block text-sm font-medium">Parent ID</label>
-            <input type="number" value={state.form.parent_id ?? ""}
+            <label className="block text-sm font-medium">Categoría Padre</label>
+            <select value={state.form.parent_id ?? ""}
               onChange={(e) => dispatch({ type: "UPDATE_FORM",
                 payload: { parent_id: e.target.value ? Number(e.target.value) : null } })}
-              className="border px-2 py-1 rounded w-full" />
+              className="border px-2 py-1 rounded w-full">
+              <option value="">— Sin categoría padre —</option>
+              {parentOptions.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.nombre}
+                </option>
+              ))}
+            </select>
           </div>
           <div>
             <label className="block text-sm font-medium">Orden Display</label>
@@ -210,26 +234,24 @@ export default function CategoriasCRUD() {
       {state.loading ? <p>Cargando...</p> : (
         <table className="w-full border-collapse border">
           <thead><tr className="bg-gray-200">
-            <th className="border p-2 text-left">ID</th>
             <th className="border p-2 text-left">Nombre</th>
             <th className="border p-2 text-left">Descripción</th>
-            <th className="border p-2 text-left">Subcategorías</th>
+            <th className="border p-2 text-left">Categoría Padre</th>
             <th className="border p-2 text-left">Acciones</th>
           </tr></thead>
           <tbody>
-            {filtered.map((cat) => (
+            {pageItems.map((cat) => (
               <tr key={cat.id} className="hover:bg-gray-100">
-                <td className="border p-2">{cat.id}</td>
-                <td className="border p-2">{cat.nombre}</td>
+                <td className="border p-2">
+                  {cat.parent_id !== null && <span className="text-gray-400 mr-1">↳ </span>}
+                  {cat.nombre}
+                </td>
                 <td className="border p-2">{cat.descripcion ?? "-"}</td>
                 <td className="border p-2">
-                  {hasChildren(cat.id) ? (
-                    <button onClick={() => setSubcatPopup(cat)}
-                      className="bg-indigo-600 text-white px-2 py-1 rounded text-sm cursor-pointer">
-                      Ver Subcategorías
-                    </button>
+                  {cat.parent_id ? (
+                    <span className="text-blue-600">{nameMap[cat.parent_id] ?? `ID ${cat.parent_id}`}</span>
                   ) : (
-                    <span className="text-gray-400 text-sm">Ninguna</span>
+                    <span className="text-gray-400">—</span>
                   )}
                 </td>
                 <td className="border p-2">
@@ -242,8 +264,8 @@ export default function CategoriasCRUD() {
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={5} className="border p-2 text-center text-gray-500">Sin resultados</td></tr>
+            {pageItems.length === 0 && (
+              <tr><td colSpan={4} className="border p-2 text-center text-gray-500">Sin resultados</td></tr>
             )}
           </tbody>
         </table>
@@ -253,14 +275,11 @@ export default function CategoriasCRUD() {
         <button disabled={state.page === 0}
           onClick={() => dispatch({ type: "SET_PAGE", payload: state.page - 1 })}
           className="bg-gray-300 px-3 py-1 rounded disabled:opacity-50 cursor-pointer">← Anterior</button>
-        <span>Página {state.page + 1}</span>
-        <button disabled={state.items.length < PAGE_SIZE}
+        <span>Página {state.page + 1} ({allFiltered.length} resultados)</span>
+        <button disabled={pageStart + PAGE_SIZE >= allFiltered.length}
           onClick={() => dispatch({ type: "SET_PAGE", payload: state.page + 1 })}
           className="bg-gray-300 px-3 py-1 rounded disabled:opacity-50 cursor-pointer">Siguiente →</button>
       </div>
-
-      {/* Popup */}
-      {subcatPopup && <SubcategoriasPopup categoria={subcatPopup} allCategorias={allCats} onClose={() => setSubcatPopup(null)} />}
     </div>
   );
 }

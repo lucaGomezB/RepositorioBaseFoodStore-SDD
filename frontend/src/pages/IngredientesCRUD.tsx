@@ -79,12 +79,13 @@ export default function IngredientesCRUD() {
   const fetchData = useCallback(async () => {
     dispatch({ type: "SET_LOADING", payload: true });
     try {
-      const data = await ingredientesApi.getAll(state.page * PAGE_SIZE, PAGE_SIZE);
+      // Fetch ALL ingredients, paginate in-memory
+      const data = await ingredientesApi.getAll(0, 1000);
       dispatch({ type: "SET_ITEMS", payload: data });
     } catch (e) {
       dispatch({ type: "SET_ERROR", payload: (e as Error).message });
     }
-  }, [state.page]);
+  }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -113,9 +114,12 @@ export default function IngredientesCRUD() {
     }
   };
 
-  const filtered = state.items.filter((i) =>
+  // Filter ALL items, then paginate in-memory
+  const allFiltered = state.items.filter((i) =>
     i.nombre.toLowerCase().includes(state.filter.toLowerCase())
   );
+  const pageStart = state.page * PAGE_SIZE;
+  const pageItems = allFiltered.slice(pageStart, pageStart + PAGE_SIZE);
 
   return (
     <div className="p-4">
@@ -127,7 +131,7 @@ export default function IngredientesCRUD() {
           className="border px-3 py-1 rounded" />
         <button onClick={() => dispatch({ type: "START_CREATE" })}
           className="bg-green-600 text-white px-4 py-1 rounded cursor-pointer">+ Nuevo</button>
-        <button onClick={() => exportToExcel(filtered.map(({ id, nombre, es_alergeno }) => ({
+        <button onClick={() => exportToExcel(allFiltered.map(({ id, nombre, es_alergeno }) => ({
             id, nombre, es_alergeno: es_alergeno ? "Sí" : "No",
           })), "ingredientes")}
           className="bg-blue-600 text-white px-4 py-1 rounded cursor-pointer">Exportar Excel</button>
@@ -154,26 +158,26 @@ export default function IngredientesCRUD() {
       {state.loading ? <p>Cargando...</p> : (
         <table className="w-full border-collapse border">
           <thead><tr className="bg-gray-200">
-            <th className="border p-2 text-left">ID</th>
             <th className="border p-2 text-left">Nombre</th>
             <th className="border p-2 text-left">Alérgeno</th>
             <th className="border p-2 text-left">Acciones</th>
           </tr></thead>
           <tbody>
-            {filtered.map((ing) => (
+            {pageItems.map((ing) => (
               <tr key={ing.id} className="hover:bg-gray-100">
-                <td className="border p-2">{ing.id}</td>
                 <td className="border p-2">{ing.nombre}</td>
                 <td className="border p-2">{ing.es_alergeno ? "Sí" : "No"}</td>
-                <td className="border p-2 flex gap-1">
-                  <button onClick={() => dispatch({ type: "START_EDIT", payload: ing })}
-                    className="bg-yellow-500 text-white px-2 py-1 rounded text-sm cursor-pointer">Editar</button>
-                  <button onClick={() => handleDelete(ing.id)}
-                    className="bg-red-600 text-white px-2 py-1 rounded text-sm cursor-pointer">Eliminar</button>
+                <td className="border p-2">
+                  <div className="flex gap-1">
+                    <button onClick={() => dispatch({ type: "START_EDIT", payload: ing })}
+                      className="bg-yellow-500 text-white px-2 py-1 rounded text-sm cursor-pointer">Editar</button>
+                    <button onClick={() => handleDelete(ing.id)}
+                      className="bg-red-600 text-white px-2 py-1 rounded text-sm cursor-pointer">Eliminar</button>
+                  </div>
                 </td>
               </tr>
             ))}
-            {filtered.length === 0 && <tr><td colSpan={4} className="border p-2 text-center text-gray-500">Sin resultados</td></tr>}
+            {pageItems.length === 0 && <tr><td colSpan={3} className="border p-2 text-center text-gray-500">Sin resultados</td></tr>}
           </tbody>
         </table>
       )}
@@ -181,8 +185,8 @@ export default function IngredientesCRUD() {
         <button disabled={state.page === 0}
           onClick={() => dispatch({ type: "SET_PAGE", payload: state.page - 1 })}
           className="bg-gray-300 px-3 py-1 rounded disabled:opacity-50 cursor-pointer">← Anterior</button>
-        <span>Página {state.page + 1}</span>
-        <button disabled={state.items.length < PAGE_SIZE}
+        <span>Página {state.page + 1} ({allFiltered.length} resultados)</span>
+        <button disabled={pageStart + PAGE_SIZE >= allFiltered.length}
           onClick={() => dispatch({ type: "SET_PAGE", payload: state.page + 1 })}
           className="bg-gray-300 px-3 py-1 rounded disabled:opacity-50 cursor-pointer">Siguiente →</button>
       </div>

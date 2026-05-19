@@ -16,7 +16,12 @@ export const ProductoFormSchema = z.object({
     .int('El stock debe ser un número entero')
     .min(0, 'El stock no puede ser negativo'),
   disponible: z.boolean().default(true),
-  imagenes_url: z.string().url('Debe ser una URL válida').nullable().optional(),
+  imagenes_url: z
+    .string()
+    .url('Debe ser una URL válida')
+    .nullable()
+    .optional()
+    .or(z.literal('')),
   tiempo_prep_min: z
     .number()
     .int('Debe ser un número entero')
