@@ -24,6 +24,7 @@ def seed_roles(session):
         {"id": 2, "nombre": "STOCK", "descripcion": "Gestión de inventario"},
         {"id": 3, "nombre": "PEDIDOS", "descripcion": "Gestión de pedidos"},
         {"id": 4, "nombre": "CLIENT", "descripcion": "Cliente del e-commerce"},
+        {"id": 5, "nombre": "COCINA", "descripcion": "Operación de cocina — KDS y avance de estado en fase de cocina"},
     ]
 
     for rol_data in roles_data:
@@ -104,6 +105,41 @@ def seed_admin_user(session):
         print("[OK] Admin user already exists")
 
 
+def seed_cocina_user(session):
+    """Seed a test user with COCINA role for development."""
+    cocina_password = settings.ADMIN_PASSWORD if hasattr(settings, 'ADMIN_PASSWORD') else "cocina123"
+    password_hash = hash_password(cocina_password)
+
+    existing = session.query(Usuario).filter(Usuario.email == "cocina@foodstore.com").first()
+    if not existing:
+        now = datetime.now().isoformat()
+        cocinero = Usuario(
+            email="cocina@foodstore.com",
+            password_hash=password_hash,
+            nombre="Cocinero",
+            apellido="FoodStore",
+            activo=True,
+            fecha_creacion=now,
+            fecha_actualizacion=now,
+        )
+        session.add(cocinero)
+        session.flush()
+
+        cocina_rol = UsuarioRol(usuario_id=cocinero.id, rol_id=5)
+        session.add(cocina_rol)
+        print("[OK] Cocina user ready")
+    else:
+        # Ensure existing cocina user has COCINA role
+        existing_rol = session.query(UsuarioRol).filter(
+            UsuarioRol.usuario_id == existing.id,
+            UsuarioRol.rol_id == 5,
+        ).first()
+        if not existing_rol:
+            cocina_rol = UsuarioRol(usuario_id=existing.id, rol_id=5)
+            session.add(cocina_rol)
+        print("[OK] Cocina user already exists")
+
+
 def seed_configuraciones(session):
     """Seed default system configurations."""
     configs_data = [
@@ -138,6 +174,7 @@ def main():
         seed_estados_pedido(session)
         seed_formas_pago(session)
         seed_admin_user(session)
+        seed_cocina_user(session)
         seed_configuraciones(session)
         session.commit()
         print("\n[OK] All seed data populated successfully!")

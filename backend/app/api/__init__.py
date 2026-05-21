@@ -21,6 +21,7 @@ from app.api.admin import (
     stock_router,
     config_router,
 )
+from app.api.cocina import router as cocina_router
 
 router.include_router(auth_router)
 router.include_router(productos_router)
@@ -36,6 +37,7 @@ router.include_router(orders_router)
 router.include_router(users_router)
 router.include_router(stock_router)
 router.include_router(config_router)
+router.include_router(cocina_router)
 
 
 @router.get("/health", tags=["Health"])

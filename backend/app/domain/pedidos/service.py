@@ -1,5 +1,7 @@
 # Pedido Service + FSM (Finite State Machine)
-from typing import List, Optional, TYPE_CHECKING
+import asyncio
+import logging
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from datetime import datetime, timezone
 from fastapi import HTTPException, status
 
@@ -15,6 +17,11 @@ from app.domain.pedidos.repository import PedidoRepository
 from app.domain.direcciones.repository import DireccionRepository
 from app.core.repositories.base import BaseRepository
 from app.domain.productos.repository import ProductoRepository
+from app.core.auth.roles import Role
+from app.core.websocket.manager import manager as ws_manager
+from app.core.websocket.events import CocinaEvent
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -42,6 +49,88 @@ def validar_transicion(desde: str, hacia: str) -> bool:
         True if the transition is valid, False otherwise.
     """
     return hacia in TRANSICIONES.get(desde, [])
+
+
+# ---------------------------------------------------------------------------
+# Event helpers for real-time KDS broadcasting
+# ---------------------------------------------------------------------------
+
+def _build_event_for_transition(
+    pedido: Pedido,
+    desde: str,
+    hacia: str,
+) -> Optional[dict]:
+    """Build a CocinaEvent dict for the given FSM transition, or None.
+
+    Only kitchen-relevant transitions (CONFIRMADO, EN_PREPARACION,
+    EN_CAMINO, CANCELADO from CONFIRMADO/EN_PREPARACION) produce events.
+
+    Args:
+        pedido: The Pedido instance (must have detalles accessible).
+        desde: Source state code.
+        hacia: Target state code.
+
+    Returns:
+        A dict suitable for WebSocket broadcast, or None.
+    """
+    if desde == "PENDIENTE" and hacia == "CONFIRMADO":
+        items_data: list[dict[str, Any]] = []
+        for detalle in (pedido.detalles or []):
+            items_data.append({
+                "producto_id": detalle.producto_id,
+                "nombre": detalle.nombre_snapshot,
+                "cantidad": detalle.cantidad,
+            })
+        event = CocinaEvent(
+            "PEDIDO_CONFIRMADO",
+            pedido.id,
+            data={"items": items_data},
+        )
+        return event.to_dict()
+
+    if desde == "CONFIRMADO" and hacia == "EN_PREPARACION":
+        event = CocinaEvent("PEDIDO_EN_PREPARACION", pedido.id)
+        return event.to_dict()
+
+    if desde == "EN_PREPARACION" and hacia == "EN_CAMINO":
+        event = CocinaEvent("PEDIDO_EN_CAMINO", pedido.id)
+        return event.to_dict()
+
+    if hacia == "CANCELADO" and desde in ("CONFIRMADO", "EN_PREPARACION"):
+        event = CocinaEvent("PEDIDO_CANCELADO", pedido.id)
+        return event.to_dict()
+
+    return None
+
+
+def _broadcast_event(event_dict: dict) -> None:
+    """Dispatch a WebSocket broadcast safely without blocking the caller.
+
+    Works in both sync and async contexts:
+    - If a running event loop exists, schedule via ``ensure_future``.
+    - Otherwise, create a temporary event loop with ``asyncio.run``.
+
+    All exceptions are caught and logged so the caller transaction is
+    never broken by a failing WebSocket broadcast.
+    """
+    try:
+        loop = asyncio.get_running_loop()
+        task = asyncio.ensure_future(ws_manager.broadcast(event_dict))
+        task.add_done_callback(lambda t: t.exception() and logger.error("Broadcast failed: %s", t.exception()))
+    except RuntimeError:
+        # No running event loop — create one
+        try:
+            asyncio.run(ws_manager.broadcast(event_dict))
+        except Exception as e:
+            logger.warning(
+                "Could not broadcast %s: %s",
+                event_dict.get("type"), e,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to broadcast %s (event ignored)",
+            event_dict.get("type"),
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -224,6 +313,7 @@ class PedidoService:
         nuevo_estado: str,
         usuario_id: Optional[int] = None,
         motivo: Optional[str] = None,
+        rol_id: Optional[int] = None,
     ) -> Pedido:
         """Transition an order to a new state following the FSM.
 
@@ -233,12 +323,18 @@ class PedidoService:
 
         If cancelling from CONFIRMADO, stock is restored atomically.
 
+        After a successful flush, kitchen-relevant transitions are
+        broadcast as real-time events to connected WebSocket clients.
+
         Args:
             uow: Unit of Work transaction wrapper.
             pedido_id: Order ID.
             nuevo_estado: Target state code.
             usuario_id: User performing the transition (for audit trail).
             motivo: Reason for the transition (required for CANCELADO).
+            rol_id: Role ID of the user performing the transition.
+                     When COCINA, only CONFIRMADO→EN_PREPARACION and
+                     EN_PREPARACION→EN_CAMINO are allowed (RN-CO03).
 
         Returns:
             The updated Pedido instance.
@@ -246,6 +342,8 @@ class PedidoService:
         Raises:
             HTTPException: 404 if order not found.
             HTTPException: 400 if transition is invalid or motivo missing.
+            HTTPException: 403 if the role does not have permission
+                           for the requested transition (RN-CO03).
         """
         pedido = uow.session.get(Pedido, pedido_id)
         if not pedido:
@@ -254,11 +352,26 @@ class PedidoService:
                 detail="Pedido no encontrado",
             )
 
-        if not validar_transicion(pedido.estado_codigo, nuevo_estado):
+        # Capture source state before any mutation
+        desde = pedido.estado_codigo
+
+        if not validar_transicion(desde, nuevo_estado):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Transicion {pedido.estado_codigo} -> {nuevo_estado} no permitida",
+                detail=f"Transicion {desde} -> {nuevo_estado} no permitida",
             )
+
+        # ------------------------------------------------------------------
+        # Role-based transition validation (RN-CO03)
+        # ------------------------------------------------------------------
+        if rol_id == Role.COCINA.value:
+            cocina_permitted = {"CONFIRMADO": ["EN_PREPARACION"], "EN_PREPARACION": ["EN_CAMINO"]}
+            allowed = cocina_permitted.get(desde, [])
+            if nuevo_estado not in allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="El rol COCINA no puede ejecutar esta transición",
+                )
 
         if nuevo_estado == "CANCELADO" and not motivo:
             raise HTTPException(
@@ -267,7 +380,7 @@ class PedidoService:
             )
 
         # Restore stock if cancelling from CONFIRMADO
-        if nuevo_estado == "CANCELADO" and pedido.estado_codigo == "CONFIRMADO":
+        if nuevo_estado == "CANCELADO" and desde == "CONFIRMADO":
             producto_repo = ProductoRepository(uow.session)
             for detalle in pedido.detalles:
                 producto_repo.actualizar_stock(detalle.producto_id, detalle.cantidad)
@@ -275,7 +388,7 @@ class PedidoService:
         # Record history entry
         historial = HistorialEstadoPedido(
             pedido_id=pedido.id,
-            estado_desde=pedido.estado_codigo,
+            estado_desde=desde,
             estado_hacia=nuevo_estado,
             motivo=motivo,
             usuario_id=usuario_id,
@@ -287,6 +400,14 @@ class PedidoService:
         pedido.updated_at = datetime.now(timezone.utc)
         uow.session.flush()
         uow.session.refresh(pedido)
+
+        # ------------------------------------------------------------------
+        # Schedule real-time event — caller broadcasts after UoW commits
+        # ------------------------------------------------------------------
+        event_dict = _build_event_for_transition(pedido, desde, nuevo_estado)
+        if event_dict:
+            pedido._pending_event = event_dict
+
         return pedido
 
     @staticmethod

@@ -39,3 +39,4 @@ Mapa de las skills disponibles con su trigger/contexto y descripción corta.
 | `systematic-debugging` | (No trigger metadata extracted) | Use when encountering any bug, test failure, or unexpected behavior, before proposing fixes. |
 | `tailwind-design-system` | When building UIs with Tailwind CSS. | Build scalable design systems with Tailwind CSS v4, design tokens, component libraries, and responsive patterns. |
 | `test-driven-development` | When implementing features or bug fixes with TDD. | Use when implementing any feature or bugfix, before writing implementation code. |
+| `feature-display-cocina` | When the user specifies to implement the cocina change using this skill | Details about the cocina / cocinero aspect about the project |

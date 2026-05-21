@@ -486,3 +486,137 @@ class TestWebhookPago:
 
         # Reset
         settings.MERCADOPAGO_WEBHOOK_SECRET = ""
+
+
+class TestTimezoneModelo:
+    """Tests for timezone awareness in Pago model."""
+
+    def test_pago_default_factory_timezone_aware(self):
+        """Pago.created_at debe generarse con timezone (no naive).
+
+        NOTA: SQLite pierde timezone al leer de BD. Verificamos la factory
+        directamente. Con PostgreSQL real el timezone se preserva.
+        """
+        from app.models.pago import Pago
+        from datetime import timezone
+
+        pago = Pago(
+            pedido_id=0,
+            mp_payment_id="tz-test",
+            mp_status="pending",
+            external_reference="tz-test",
+            idempotency_key="tz-test-key",
+        )
+        assert pago.created_at.tzinfo is not None, "created_at debe ser timezone-aware"
+        assert pago.updated_at.tzinfo is not None, "updated_at debe ser timezone-aware"
+
+
+class TestCardTokenNoPersistido:
+    """Tests for card_token not persisted."""
+
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
+    def test_card_token_no_se_guarda(self, mock_get_sdk, client, session):
+        """Crear pago con card_token → en BD el campo debe ser NULL."""
+        from app.models.pago import Pago
+        from sqlmodel import select
+
+        seed_estados(session)
+        user = create_user(session)
+        order = create_pedido(session, user.id)
+        token = create_token_for(user)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        mock_sdk = MagicMock()
+        mock_payment = MagicMock()
+        mock_payment_create = MagicMock()
+        mock_payment_create.return_value = {
+            "response": {
+                "id": "card-token-test-123",
+                "status": "approved",
+                "status_detail": "accredited",
+            }
+        }
+        mock_payment.create = mock_payment_create
+        mock_sdk.payment.return_value = mock_payment
+        mock_get_sdk.return_value = mock_sdk
+
+        response = client.post(
+            "/api/v1/pagos/crear",
+            json={
+                "pedido_id": order.id,
+                "card_token": "test-card-token-12345",
+            },
+            headers=headers,
+        )
+
+        assert response.status_code == 201
+
+        pago = session.exec(
+            select(Pago).where(Pago.mp_payment_id == "card-token-test-123")
+        ).first()
+        assert pago is not None
+        assert pago.card_token is None, "card_token NO debe persistirse en BD"
+
+    def test_mock_sin_card_token(self, client, session):
+        """Mock payment nunca tiene card_token."""
+        from app.models.pago import Pago
+        from sqlmodel import select
+
+        seed_estados(session)
+        user = create_user(session)
+        order = create_pedido(session, user.id)
+        token = create_token_for(user)
+        headers = {"Authorization": f"Bearer {token}"}
+
+        response = client.post(
+            "/api/v1/pagos/mock",
+            json={"pedido_id": order.id},
+            headers=headers,
+        )
+
+        assert response.status_code == 201
+
+        pago = session.exec(
+            select(Pago).where(Pago.pedido_id == order.id)
+        ).first()
+        assert pago is not None
+        assert pago.card_token is None, "mock payment no debe tener card_token"
+
+
+class TestExternalReference:
+    """Tests for external_reference parsing robustness."""
+
+    @patch("app.domain.pagos.service.PagoService._get_sdk")
+    def test_webhook_external_reference_invalida(self, mock_get_sdk, client, session):
+        """Webhook con external_reference inválida no crea Pago huérfano."""
+        from app.models.pago import Pago
+        from sqlmodel import select
+
+        mock_sdk = MagicMock()
+        mock_payment = MagicMock()
+        mock_payment.get.return_value = {
+            "response": {
+                "id": "ext-ref-invalid-1",
+                "status": "approved",
+                "status_detail": "accredited",
+                "external_reference": "invalid-format-no-dash",
+            }
+        }
+        mock_sdk.payment.return_value = mock_payment
+        mock_get_sdk.return_value = mock_sdk
+
+        response = client.post(
+            "/api/v1/pagos/webhook",
+            json={
+                "type": "payment",
+                "data": {"id": "ext-ref-invalid-1"},
+            },
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "error"
+
+        pagos = session.exec(select(Pago)).all()
+        orphan = [p for p in pagos if p.pedido_id == 0 or p.pedido_id is None]
+        assert len(orphan) == 0, "No deben crearse Pagos huérfanos"

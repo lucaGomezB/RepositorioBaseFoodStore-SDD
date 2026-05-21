@@ -42,6 +42,7 @@ frontend/*.log
 **/credentials*
 **/service-account*.json
 **/credentials.json
+**/MERCADO_PAGO*
 
 # IDE — General
 .vscode/

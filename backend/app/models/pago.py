@@ -1,6 +1,6 @@
 # Pago model — MercadoPago payment tracking
 from sqlmodel import SQLModel, Field, Relationship
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -27,8 +27,8 @@ class Pago(SQLModel, table=True):
     idempotency_key: str = Field(max_length=100, unique=True, nullable=False)
     card_token: Optional[str] = Field(default=None, max_length=255)
     status_detail: Optional[str] = Field(default=None, max_length=255)
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     # Relationship
     pedido: "Pedido" = Relationship(back_populates="pagos")

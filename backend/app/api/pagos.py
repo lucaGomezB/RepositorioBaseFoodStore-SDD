@@ -13,6 +13,7 @@ from app.domain.pagos.schemas import (
     PagoRead,
 )
 from app.domain.pagos.service import PagoService
+from app.domain.pedidos.service import _broadcast_event
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
@@ -68,6 +69,10 @@ def crear_pago_mock(
                 pedido_id=data.pedido_id,
                 usuario_id=current_user.user_id,
             )
+        # Broadcast after UoW commits successfully
+        event = getattr(pago, '_pending_event', None)
+        if event:
+            _broadcast_event(event)
         return pago
     except HTTPException:
         raise
@@ -152,9 +157,12 @@ async def webhook_pago(
                 webhook_type=webhook_type,
                 webhook_data=webhook_data,
             )
+        # Broadcast after UoW commits successfully
+        event = result.pop("_pending_event", None) if isinstance(result, dict) else None
+        if event:
+            _broadcast_event(event)
         return result
-    except HTTPException:
-        raise
     except Exception as e:
-        # Always return 200 to prevent MercadoPago retries
-        return {"status": "error", "detail": str(e)}
+        # Always return 200 to prevent MercadoPago retries (RN-PE06)
+        detail = e.detail if isinstance(e, HTTPException) else str(e)
+        return {"status": "error", "detail": detail}

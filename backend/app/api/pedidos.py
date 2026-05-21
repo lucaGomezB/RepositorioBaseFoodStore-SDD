@@ -18,7 +18,7 @@ from app.domain.pedidos.schemas import (
     HistorialEstadoRead,
     TransicionEstadoRequest,
 )
-from app.domain.pedidos.service import PedidoService
+from app.domain.pedidos.service import PedidoService, _broadcast_event
 
 router = APIRouter(prefix="/pedidos", tags=["Pedidos"])
 
@@ -146,17 +146,25 @@ def transicionar_estado_pedido(
     pedido_id: int,
     data: TransicionEstadoRequest,
     session: Session = Depends(get_db),
-    current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.PEDIDOS)),
+    current_user: TokenPayload = Depends(require_roles(Role.ADMIN, Role.PEDIDOS, Role.COCINA)),
 ):
     """Transition an order to a new state.
 
     Validates the transition against the FSM rules. If the transition is
     a cancellation from CONFIRMADO, stock is restored atomically.
 
-    Only ADMIN and PEDIDOS roles can transition orders.
+    ADMIN, PEDIDOS and COCINA roles can transition orders.
+    COCINA is limited to CONFIRMADO→EN_PREPARACION and EN_PREPARACION→EN_CAMINO
+    (validated in the service layer per RN-CO03).
     """
     with UnitOfWork(session) as uow:
-        return PedidoService.transicionar_estado(
+        pedido = PedidoService.transicionar_estado(
             uow, pedido_id, data.nuevo_estado,
             usuario_id=current_user.user_id, motivo=data.motivo,
+            rol_id=current_user.rol_id,
         )
+    # Broadcast after UoW commits successfully
+    event = getattr(pedido, '_pending_event', None)
+    if event:
+        _broadcast_event(event)
+    return pedido

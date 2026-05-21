@@ -31,6 +31,9 @@ const allNavItems: NavItem[] = [
   // PEDIDOS items (roles=[3]) + ADMIN (roles=[1])
   { label: 'Panel de Pedidos', path: '/panel-pedidos', icon: '📋', allowedRoles: [1, 3] },
 
+  // COCINA items (roles=[5]) + PEDIDOS (roles=[3]) + ADMIN (roles=[1])
+  { label: 'Pantalla Cocina', path: '/cocina', icon: '🍳', allowedRoles: [1, 3, 5] },
+
   // ADMIN-only items
   { label: 'Usuarios', path: '/usuarios', icon: '👥', allowedRoles: [1] },
   { label: 'Métricas', path: '/metricas', icon: '📈', allowedRoles: [1] },

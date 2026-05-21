@@ -67,7 +67,6 @@ class PagoService:
             HTTPException: 409 if order is not in PENDIENTE state.
         """
         repo = PagoRepository(uow.session)
-        PedidoRepository(uow.session)
 
         # Step 1: Validate order exists
         pedido = uow.session.get(Pedido, pedido_id)
@@ -129,13 +128,13 @@ class PagoService:
                     ],
                     "external_reference": external_reference,
                     "back_urls": {
-                        "success": f"{settings.CORS_ORIGINS.split(',')[0].strip()}/pedidos/{pedido_id}",
-                        "failure": f"{settings.CORS_ORIGINS.split(',')[0].strip()}/pedidos/{pedido_id}",
-                        "pending": f"{settings.CORS_ORIGINS.split(',')[0].strip()}/pedidos/{pedido_id}",
+                        "success": f"{settings.app_url}/pedidos/{pedido_id}",
+                        "failure": f"{settings.app_url}/pedidos/{pedido_id}",
+                        "pending": f"{settings.app_url}/pedidos/{pedido_id}",
                     },
                     "auto_return": "approved",
                     "notification_url": settings.MERCADOPAGO_WEBHOOK_SECRET and (
-                        f"{settings.CORS_ORIGINS.split(',')[0].strip()}/api/v1/pagos/webhook"
+                        f"{settings.app_url}/api/v1/pagos/webhook"
                     ) or None,
                 }
                 preference_response = sdk.preference().create(preference_data)
@@ -170,13 +169,14 @@ class PagoService:
                 )
 
         # Step 5: Register in Pago table
+        # card_token is intentionally NOT persisted — it's a single-use token
+        # that expires after 24h and serves no purpose post-payment.
         pago = Pago(
             pedido_id=pedido_id,
             mp_payment_id=mp_payment_id,
             mp_status=mp_status or "pending",
             external_reference=external_reference,
             idempotency_key=idempotency_key,
-            card_token=card_token,
             status_detail=status_detail,
         )
         uow.session.add(pago)
@@ -257,13 +257,18 @@ class PagoService:
         uow.session.refresh(pago)
 
         # Step 5: Transition order to CONFIRMADO
-        PedidoService.transicionar_estado(
+        pedido_actualizado = PedidoService.transicionar_estado(
             uow,
             pedido_id,
             "CONFIRMADO",
             usuario_id=usuario_id,
             motivo="Pago mock aprobado",
         )
+
+        # Propagate pending event for broadcast after UoW commits
+        pending = getattr(pedido_actualizado, '_pending_event', None)
+        if pending is not None:
+            pago._pending_event = pending
 
         return pago
 
@@ -449,7 +454,15 @@ class PagoService:
         if not pago:
             # New payment notification — create record
             # Parse pedido_id from external_reference (format: "{pedido_id}-{uuid_prefix}")
-            pedido_id_from_ref = int(external_reference.split("-")[0]) if external_reference and "-" in external_reference else 0
+            pedido_id_from_ref = 0
+            if external_reference and "-" in external_reference:
+                try:
+                    pedido_id_from_ref = int(external_reference.split("-")[0])
+                except (ValueError, IndexError):
+                    pedido_id_from_ref = 0
+            if not pedido_id_from_ref:
+                # Cannot link payment to an order — skip creating orphan record
+                return {"status": "error", "detail": f"Invalid external_reference: {external_reference}"}
             pago = Pago(
                 pedido_id=pedido_id_from_ref,
                 mp_payment_id=str(mp_payment_id),
@@ -469,22 +482,28 @@ class PagoService:
 
             pago.mp_status = mp_status
             pago.status_detail = status_detail
-            pago.updated_at = datetime.datetime.now(datetime.UTC)
+            pago.updated_at = datetime.datetime.now(datetime.timezone.utc)
 
         # If approved, transition order to CONFIRMADO
         if mp_status == "approved" and pago.pedido_id:
             pedido = uow.session.get(Pedido, pago.pedido_id)
             if pedido and pedido.estado_codigo == "PENDIENTE":
                 try:
-                    PedidoService.transicionar_estado(
+                    pedido_actualizado = PedidoService.transicionar_estado(
                         uow,
                         pago.pedido_id,
                         "CONFIRMADO",
                         usuario_id=None,  # System transition
                         motivo="Pago aprobado via MercadoPago",
                     )
+                    pending = getattr(pedido_actualizado, '_pending_event', None)
+                    if pending is not None:
+                        pago._pending_event = pending
                 except Exception:
                     # Transition failed — don't break the webhook response
                     pass
 
-        return {"status": "processed", "detail": f"Pago {mp_payment_id} actualizado a {mp_status}"}
+        result = {"status": "processed", "detail": f"Pago {mp_payment_id} actualizado a {mp_status}"}
+        if getattr(pago, '_pending_event', None):
+            result["_pending_event"] = pago._pending_event
+        return result

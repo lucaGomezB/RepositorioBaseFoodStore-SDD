@@ -23,6 +23,7 @@ import MetricasPage from '../pages/MetricasPage';
 import StockPage from '../pages/StockPage';
 import UsuariosPage from '../pages/UsuariosPage';
 import ConfiguracionPage from '../pages/ConfiguracionPage';
+import CocinaPage from '../pages/CocinaPage';
 
 /**
  * Route configuration for the Food Store frontend.
@@ -72,6 +73,14 @@ export const routes: RouteObject[] = [
         element: <ProtectedRoute requiredRoles={[1, 3]} />,
         children: [
           { path: 'panel-pedidos', element: <PanelPedidosPage /> },
+        ],
+      },
+      // Protected: KDS — accessible to COCINA(5), PEDIDOS(3) and ADMIN(1)
+      // TODO: Excluir ruta /cocina de auto-logout por inactividad cuando se implemente
+      {
+        element: <ProtectedRoute requiredRoles={[1, 3, 5]} />,
+        children: [
+          { path: 'cocina', element: <CocinaPage /> },
         ],
       },
       // Protected: Admin-only pages
