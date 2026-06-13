@@ -40,6 +40,14 @@
       "sessions": 0,
       "memories": 0,
       "prompts": 3
+    },
+    {
+      "id": "ba123c7c",
+      "created_by": "Skywalker",
+      "created_at": "2026-06-13T22:03:04Z",
+      "sessions": 0,
+      "memories": 7,
+      "prompts": 10
     }
   ]
 }

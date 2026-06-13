@@ -106,3 +106,4 @@ Revisás la propuesta, la discutís, la ajustás si hace falta — y recién ent
 |--------|--------|-----------|
 | fix-httpclient-ubicacion-direcciones | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-httpclient-ubicacion-direcciones/` |
 | fix-cocina-kds-and-auth | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-cocina-kds-and-auth/` |
+| fix-metricas-timestamptz-and-cocina-ws | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-metricas-timestamptz-and-cocina-ws/` |
