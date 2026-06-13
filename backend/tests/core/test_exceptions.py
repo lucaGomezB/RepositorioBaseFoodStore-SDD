@@ -120,7 +120,7 @@ class TestValidationException:
         """Test ValidationException has correct defaults."""
         exc = ValidationException()
         
-        assert exc.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
+        assert exc.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert exc.title == "Validation Error"
         assert exc.error_type == "https://api.foodstore.com/errors/validation-error"
 

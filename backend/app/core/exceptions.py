@@ -86,7 +86,7 @@ class ValidationException(AppException):
 
     def __init__(self, detail: str = "Validation failed", errors: Optional[list] = None):
         super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=detail,
             title="Validation Error",
             error_type="https://api.foodstore.com/errors/validation-error",

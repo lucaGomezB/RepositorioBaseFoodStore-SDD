@@ -4,6 +4,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.core.schemas.error import create_problem_response
@@ -55,8 +56,8 @@ def init_rate_limiting(app: FastAPI) -> None:
     # Add limiter to app state
     app.state.limiter = limiter
     
-    # Add the limiter as middleware
-    app.add_middleware(limiter.__class__, limiter=limiter)
+    # Add SlowAPIMiddleware — reads limiter from app.state.limiter
+    app.add_middleware(SlowAPIMiddleware)
     
     # Register custom rate limit exceeded handler
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)

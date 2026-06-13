@@ -50,8 +50,8 @@ class DireccionService:
         if not direccion:
             return None
 
-        # Update only provided fields
-        values = {k: v for k, v in data.items() if v is not None}
+        # Update all provided fields (including explicit None to clear optional fields)
+        values = {k: v for k, v in data.items()}
         values["actualizado_en"] = datetime.now(timezone.utc)
 
         for key, value in values.items():

@@ -350,6 +350,326 @@ class TestMarcarPredeterminada:
         assert response.status_code == 401
 
 
+class TestDireccionCoordenadas:
+    """Tests for address coordinates (latitud/longitud)."""
+
+    def test_crear_direccion_con_coordenadas(self, session, client):
+        """
+        Scenario: Create address with coordinates
+        WHEN an authenticated CLIENT sends POST /api/v1/direcciones with latitud and longitud
+        THEN the system SHALL return HTTP 201 with the coordinates stored
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Corrientes",
+            "numero": "1234",
+            "piso_depto": "3B",
+            "ciudad": "Buenos Aires",
+            "codigo_postal": "C1043",
+            "latitud": -34.6037,
+            "longitud": -58.3816,
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["latitud"] == -34.6037
+        assert data["longitud"] == -58.3816
+        assert data["calle"] == "Av. Corrientes"
+
+    def test_crear_direccion_sin_coordenadas(self, session, client):
+        """
+        Scenario: Create address without coordinates
+        WHEN an authenticated CLIENT sends POST /api/v1/direcciones without latitud/longitud
+        THEN the system SHALL return HTTP 201 with latitud=None and longitud=None
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Santa Fe",
+            "numero": "567",
+            "ciudad": "Buenos Aires",
+            "codigo_postal": "C1056",
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["latitud"] is None
+        assert data["longitud"] is None
+
+    def test_crear_direccion_con_latitud_invalida(self, session, client):
+        """
+        Scenario: Create address with invalid latitude
+        WHEN an authenticated CLIENT sends POST with latitud outside -90..90 range
+        THEN the system SHALL return HTTP 422 Validation Error
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Siempre Viva",
+            "numero": "742",
+            "ciudad": "Springfield",
+            "codigo_postal": "1234",
+            "latitud": 100.0,
+            "longitud": 10.0,
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 422
+
+    def test_crear_direccion_con_longitud_invalida(self, session, client):
+        """
+        Scenario: Create address with invalid longitude
+        WHEN an authenticated CLIENT sends POST with longitud outside -180..180 range
+        THEN the system SHALL return HTTP 422 Validation Error
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Siempre Viva",
+            "numero": "742",
+            "ciudad": "Springfield",
+            "codigo_postal": "1234",
+            "latitud": 10.0,
+            "longitud": 200.0,
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 422
+
+    # --- Boundary value tests for coordinates ---
+
+    @pytest.mark.parametrize("latitud,longitud", [
+        (-90.0, 0.0),
+        (90.0, 0.0),
+        (0.0, -180.0),
+        (0.0, 180.0),
+        (0.0, 0.0),
+        (-34.6037, -58.3816),
+    ])
+    def test_crear_direccion_con_coordenadas_validas_en_limites(self, session, client, latitud, longitud):
+        """
+        Scenario: Create address with boundary-valid coordinates
+        WHEN an authenticated CLIENT sends POST with lat/lng at valid boundaries
+        THEN the system SHALL return HTTP 201 with the coordinates stored
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Test",
+            "numero": "123",
+            "ciudad": "Test City",
+            "codigo_postal": "1234",
+            "latitud": latitud,
+            "longitud": longitud,
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 201
+        data = response.json()
+        assert data["latitud"] == latitud
+        assert data["longitud"] == longitud
+
+    @pytest.mark.parametrize("latitud,longitud", [
+        (-90.1, 0.0),
+        (90.1, 0.0),
+        (0.0, -180.1),
+        (0.0, 180.1),
+    ])
+    def test_crear_direccion_con_coordenadas_fuera_de_limites(self, session, client, latitud, longitud):
+        """
+        Scenario: Create address with out-of-boundary coordinates
+        WHEN an authenticated CLIENT sends POST with lat/lng just outside valid range
+        THEN the system SHALL return HTTP 422 Validation Error
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        payload = {
+            "calle": "Av. Test",
+            "numero": "123",
+            "ciudad": "Test City",
+            "codigo_postal": "1234",
+            "latitud": latitud,
+            "longitud": longitud,
+        }
+
+        response = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 422
+
+    def test_listar_direcciones_incluye_coordenadas(self, session, client):
+        """
+        Scenario: List addresses returns coordinates
+        WHEN an authenticated CLIENT sends GET /api/v1/direcciones
+        THEN the response SHALL include latitud and longitud for each address
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        # Create address with coordinates
+        payload = {
+            "calle": "Av. Corrientes",
+            "numero": "1234",
+            "piso_depto": "3B",
+            "ciudad": "Buenos Aires",
+            "codigo_postal": "C1043",
+            "latitud": -34.6037,
+            "longitud": -58.3816,
+        }
+
+        client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        # List addresses
+        response = client.get(
+            "/api/v1/direcciones/",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert len(data) == 1
+        assert data[0]["latitud"] == -34.6037
+        assert data[0]["longitud"] == -58.3816
+        assert "latitud" in data[0]
+        assert "longitud" in data[0]
+
+    def test_actualizar_solo_coordenadas(self, session, client):
+        """
+        Scenario: Update only coordinates, leaving other fields unchanged
+        WHEN an authenticated CLIENT sends PUT with only latitud/longitud changes
+        THEN the system SHALL update coordinates and preserve other fields
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        # Create address
+        payload = {
+            "calle": "Av. Corrientes",
+            "numero": "1234",
+            "piso_depto": "3B",
+            "ciudad": "Buenos Aires",
+            "codigo_postal": "C1043",
+            "latitud": -34.6037,
+            "longitud": -58.3816,
+        }
+
+        create_resp = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert create_resp.status_code == 201
+        direccion_id = create_resp.json()["id"]
+
+        # Update only coordinates
+        update_resp = client.put(
+            f"/api/v1/direcciones/{direccion_id}",
+            json={"latitud": 10.0, "longitud": 20.0},
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert update_resp.status_code == 200
+        data = update_resp.json()
+        assert data["latitud"] == 10.0
+        assert data["longitud"] == 20.0
+        # Other fields preserved
+        assert data["calle"] == "Av. Corrientes"
+        assert data["numero"] == "1234"
+        assert data["piso_depto"] == "3B"
+
+    def test_actualizar_limpia_campos_opcionales(self, session, client):
+        """
+        Scenario: Update clears optional fields when set to None
+        WHEN an authenticated CLIENT sends PUT /api/v1/direcciones/{id}
+        with piso_depto=None, latitud=None, longitud=None
+        THEN the system SHALL update those fields to None/null
+        """
+        user = create_user(session, rol_id=Role.CLIENT.value)
+        token = create_token_for(user)
+
+        # Create address WITH optional fields set
+        payload = {
+            "calle": "Av. Corrientes",
+            "numero": "1234",
+            "piso_depto": "3B",
+            "ciudad": "Buenos Aires",
+            "codigo_postal": "C1043",
+            "latitud": -34.6037,
+            "longitud": -58.3816,
+        }
+
+        create_resp = client.post(
+            "/api/v1/direcciones/",
+            json=payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+        assert create_resp.status_code == 201
+        direccion_id = create_resp.json()["id"]
+
+        # Now send update with null values for optional fields
+        update_payload = {
+            "piso_depto": None,
+            "latitud": None,
+            "longitud": None,
+        }
+
+        update_resp = client.put(
+            f"/api/v1/direcciones/{direccion_id}",
+            json=update_payload,
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert update_resp.status_code == 200
+        data = update_resp.json()
+        assert data["piso_depto"] is None
+        assert data["latitud"] is None
+        assert data["longitud"] is None
+        # Verify other fields are preserved
+        assert data["calle"] == "Av. Corrientes"
+        assert data["numero"] == "1234"
+
+
 class TestAuthRequerido:
     """Tests that all endpoints require authentication."""
 

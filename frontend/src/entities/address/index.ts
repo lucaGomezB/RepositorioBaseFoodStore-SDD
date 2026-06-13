@@ -8,6 +8,8 @@ export interface Direccion {
   ciudad: string;
   codigo_postal: string;
   es_predeterminada: boolean;
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface DireccionCreate {
@@ -16,6 +18,8 @@ export interface DireccionCreate {
   piso_depto?: string;
   ciudad: string;
   codigo_postal: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface DireccionUpdate {
@@ -24,6 +28,8 @@ export interface DireccionUpdate {
   piso_depto?: string;
   ciudad?: string;
   codigo_postal?: string;
+  latitud?: number;
+  longitud?: number;
 }
 
 export {

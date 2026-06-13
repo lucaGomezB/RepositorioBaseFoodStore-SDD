@@ -18,6 +18,8 @@ class Direccion(SQLModel, table=True):
     piso_depto: Optional[str] = Field(default=None, max_length=50)
     ciudad: str = Field(max_length=100)
     codigo_postal: str = Field(max_length=20)
+    latitud: Optional[float] = Field(default=None)
+    longitud: Optional[float] = Field(default=None)
     es_predeterminada: bool = Field(default=False)
     creado_en: datetime = Field(default_factory=datetime.utcnow)
     actualizado_en: datetime = Field(default_factory=datetime.utcnow)

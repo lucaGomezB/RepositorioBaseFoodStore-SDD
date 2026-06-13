@@ -1,5 +1,5 @@
 // DireccionesPage — CRUD de direcciones de entrega para el usuario autenticado
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useState } from 'react';
 import { httpClient } from '@/shared/api/httpClient';
 
 // ---------------------------------------------------------------------------
@@ -14,6 +14,8 @@ interface Direccion {
   ciudad: string;
   codigo_postal: string;
   es_predeterminada: boolean;
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 interface DireccionForm {
@@ -22,6 +24,8 @@ interface DireccionForm {
   piso_depto: string;
   ciudad: string;
   codigo_postal: string;
+  latitud: number | null;
+  longitud: number | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -52,6 +56,8 @@ const emptyForm: DireccionForm = {
   piso_depto: '',
   ciudad: '',
   codigo_postal: '',
+  latitud: null,
+  longitud: null,
 };
 
 function reducer(state: State, action: Action): State {
@@ -73,6 +79,8 @@ function reducer(state: State, action: Action): State {
           piso_depto: action.payload.piso_depto ?? '',
           ciudad: action.payload.ciudad,
           codigo_postal: action.payload.codigo_postal,
+          latitud: action.payload.latitud ?? null,
+          longitud: action.payload.longitud ?? null,
         },
       };
     case 'START_CREATE':
@@ -101,6 +109,8 @@ const init: State = {
 
 export default function DireccionesPage() {
   const [state, dispatch] = useReducer(reducer, init);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   // ── Fetch addresses ──
 
@@ -121,6 +131,49 @@ export default function DireccionesPage() {
     fetchData();
   }, [fetchData]);
 
+  // ── Get current location ──
+
+  const handleGetLocation = useCallback(() => {
+    if (!navigator.geolocation) {
+      setLocationError('Geolocalización no soportada por el navegador');
+      return;
+    }
+
+    setLocationLoading(true);
+    setLocationError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        dispatch({
+          type: 'UPDATE_FORM',
+          payload: {
+            latitud: position.coords.latitude,
+            longitud: position.coords.longitude,
+          },
+        });
+        setLocationLoading(false);
+      },
+      (error) => {
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setLocationError('Permiso de ubicación denegado');
+            break;
+          case error.POSITION_UNAVAILABLE:
+            setLocationError('Ubicación no disponible');
+            break;
+          case error.TIMEOUT:
+            setLocationError('Tiempo de espera agotado');
+            break;
+          default:
+            setLocationError('Error al obtener ubicación');
+            break;
+        }
+        setLocationLoading(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 },
+    );
+  }, []);
+
   // ── Create / Update ──
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -134,13 +187,22 @@ export default function DireccionesPage() {
       return;
     }
     try {
-      const payload = {
+      const payload: Record<string, unknown> = {
         calle: state.form.calle.trim(),
         numero: state.form.numero.trim(),
         piso_depto: state.form.piso_depto.trim() || null,
         ciudad: state.form.ciudad.trim(),
         codigo_postal: state.form.codigo_postal.trim(),
       };
+
+      // Include lat/lng if set
+      if (state.form.latitud !== null) {
+        payload.latitud = state.form.latitud;
+      }
+      if (state.form.longitud !== null) {
+        payload.longitud = state.form.longitud;
+      }
+
       if (state.editingId) {
         await httpClient.put(`/direcciones/${state.editingId}`, payload);
       } else {
@@ -288,6 +350,51 @@ export default function DireccionesPage() {
               placeholder="C1043"
             />
           </div>
+          {/* Coordinates */}
+          <div>
+            <label className="block text-sm font-medium mb-0.5">Latitud</label>
+            <div className="flex gap-2 items-center">
+              <input
+                value={state.form.latitud ?? ''}
+                onChange={(e) =>
+                  dispatch({
+                    type: 'UPDATE_FORM',
+                    payload: { latitud: e.target.value === '' ? null : Number(e.target.value) },
+                  })
+                }
+                className="border px-2 py-1.5 rounded w-full"
+                placeholder="-34.6037"
+                type="number"
+                step="any"
+              />
+              <button
+                type="button"
+                onClick={handleGetLocation}
+                className="bg-purple-600 text-white px-3 py-1.5 rounded text-sm cursor-pointer hover:bg-purple-700 transition-colors whitespace-nowrap"
+              >
+                {locationLoading ? 'Obteniendo...' : 'Usar ubicación actual'}
+              </button>
+            </div>
+            {locationError && (
+              <p className="text-red-500 text-xs mt-1">{locationError}</p>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-0.5">Longitud</label>
+            <input
+              value={state.form.longitud ?? ''}
+              onChange={(e) =>
+                dispatch({
+                  type: 'UPDATE_FORM',
+                  payload: { longitud: e.target.value === '' ? null : Number(e.target.value) },
+                })
+              }
+              className="border px-2 py-1.5 rounded w-full"
+              placeholder="-58.3816"
+              type="number"
+              step="any"
+            />
+          </div>
           {/* Form actions */}
           <div className="flex items-end gap-2 sm:col-span-2 lg:col-span-3">
             <button
@@ -328,6 +435,7 @@ export default function DireccionesPage() {
                 <th className="border p-2 text-left">Dirección</th>
                 <th className="border p-2 text-left">Ciudad</th>
                 <th className="border p-2 text-left">CP</th>
+                <th className="border p-2 text-left">Coordenadas</th>
                 <th className="border p-2 text-center">Predeterminada</th>
                 <th className="border p-2 text-center">Acciones</th>
               </tr>
@@ -341,6 +449,11 @@ export default function DireccionesPage() {
                   </td>
                   <td className="border p-2">{dir.ciudad}</td>
                   <td className="border p-2">{dir.codigo_postal}</td>
+                  <td className="border p-2 text-sm text-gray-600">
+                    {dir.latitud != null && dir.longitud != null
+                      ? `${dir.latitud.toFixed(4)}, ${dir.longitud.toFixed(4)}`
+                      : '-'}
+                  </td>
                   <td className="border p-2 text-center">
                     {dir.es_predeterminada ? (
                       <span className="inline-block bg-blue-100 text-blue-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">

@@ -1,8 +1,10 @@
 # Pagos Router — MercadoPago payment endpoints
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+import logging
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from sqlmodel import Session
 
 from app.core.database import get_db
+from app.core.middleware.rate_limiter import limiter
 from app.core.uow import UnitOfWork
 from app.core.auth.deps import get_current_user, TokenPayload
 from app.core.auth.authorization import require_roles
@@ -14,6 +16,8 @@ from app.domain.pagos.schemas import (
 )
 from app.domain.pagos.service import PagoService
 from app.domain.pedidos.service import _broadcast_event
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/pagos", tags=["Pagos"])
 
@@ -114,8 +118,10 @@ def obtener_pago(
 
 
 @router.post("/webhook")
+@limiter.limit("10/minute")
 async def webhook_pago(
     request: Request,
+    background_tasks: BackgroundTasks,
     session: Session = Depends(get_db),
 ):
     """Receive MercadoPago IPN webhook notification.
@@ -124,45 +130,63 @@ async def webhook_pago(
     notifications without authentication. Security is handled via
     X-Signature validation.
 
-    Responds 200 immediately per RN-PA03, then processes the
-    notification asynchronously.
-    """
-    # Get raw body before any parsing (needed for signature verification)
-    raw_body = await request.body()
+    Rate-limited to 10 requests/minute per IP.
 
-    # Validate webhook signature
+    Responds 200 immediately per RN-PA03, then processes the
+    notification asynchronously via BackgroundTasks.
+    """
+    # 1. Get raw body (needed for signature verification)
+    raw_body = await request.body()
+    logger.info("Webhook recibido (%d bytes)", len(raw_body))
+
+    # 2. Validate signature (fast, synchronous)
     signature_header = request.headers.get("x-signature")
     try:
         PagoService.verificar_firma_webhook(
             signature_header=signature_header,
             raw_body=raw_body,
         )
+        logger.info("Firma webhook validada exitosamente")
     except HTTPException:
         raise
     except Exception:
+        logger.warning("Error validando firma webhook", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Error al validar firma del webhook",
         )
 
-    # Parse webhook data
-    try:
-        body = await request.json()
-        webhook_type = body.get("type", "")
-        webhook_data = body.get("data", {})
+    # 3. Parse body and enqueue background processing
+    body = await request.json()
+    logger.info("Webhook encolado: type=%s", body.get("type"))
 
+    background_tasks.add_task(
+        _procesar_webhook_background,
+        session, body,
+    )
+
+    return {"status": "ok", "message": "Webhook recibido, procesando asincrónicamente"}
+
+
+def _procesar_webhook_background(session: Session, body: dict):
+    """Process webhook in background after returning 200."""
+    webhook_type = body.get("type", "")
+    webhook_data = body.get("data", {})
+
+    try:
         with UnitOfWork(session) as uow:
             result = PagoService.procesar_webhook(
                 uow=uow,
                 webhook_type=webhook_type,
                 webhook_data=webhook_data,
             )
+
         # Broadcast after UoW commits successfully
         event = result.pop("_pending_event", None) if isinstance(result, dict) else None
         if event:
             _broadcast_event(event)
-        return result
+
+        logger.info("Webhook procesado exitosamente: type=%s", webhook_type)
     except Exception as e:
-        # Always return 200 to prevent MercadoPago retries (RN-PE06)
         detail = e.detail if isinstance(e, HTTPException) else str(e)
-        return {"status": "error", "detail": detail}
+        logger.error("Error procesando webhook: %s", detail, exc_info=True)

@@ -72,7 +72,7 @@ echo.
 ::  3. Backend - FastAPI (puerto 8000)
 :: ============================================
 echo [3/4] Backend (FastAPI - puerto 8000)...
-start "FoodStore-Backend" /D "%ROOT%\backend" cmd /c "title FoodStore-Backend && .venv\Scripts\python.exe -m uvicorn app.main:app --reload"
+powershell -NoProfile -Command "Start-Process -WindowStyle Normal -FilePath '%ROOT%\backend\.venv\Scripts\python.exe' -ArgumentList '-m','uvicorn','app.main:app','--reload' -WorkingDirectory '%ROOT%\backend'"
 echo   * Backend iniciado en ventana aparte.
 echo   * http://localhost:8000
 echo   * http://localhost:8000/docs
@@ -82,13 +82,13 @@ echo.
 ::  4. Frontend - React + Vite (puerto 5173)
 :: ============================================
 echo [4/4] Frontend (React + Vite - puerto 5173)...
-start "FoodStore-Frontend" /D "%ROOT%\frontend" cmd /c "title FoodStore-Frontend && npm run dev"
+powershell -NoProfile -Command "Start-Process -WindowStyle Normal -FilePath 'cmd.exe' -ArgumentList '/c','npm','run','dev' -WorkingDirectory '%ROOT%\frontend'"
 echo   * Frontend iniciado en ventana aparte.
 echo   * http://localhost:5173
 echo.
 
 :: Pequena pausa para que arranquen las ventanas
-timeout /t 2 /nobreak >nul
+timeout /t 3 /nobreak >nul
 
 :: ============================================
 ::  Menu principal - esperar comando "quit"
@@ -122,33 +122,16 @@ echo   DETENIENDO SERVICIOS...
 echo ============================================
 echo.
 
-:: --- Detener Backend ---
+:: --- Detener Backend (por puerto 8000) ---
 echo [1/3] Deteniendo Backend...
-echo   * Seed de datos: no requiere detencion (idempotente).
-taskkill /F /FI "WindowTitle eq FoodStore-Backend" /T >nul 2>&1
-if %ERRORLEVEL% equ 0 (
-    echo   * Backend detenido.
-) else (
-    :: Fallback: matar por puerto 8000
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R ":8000 "') do (
-        taskkill /F /PID %%a >nul 2>&1
-    )
-    echo   * Backend detenido (por puerto).
-)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R ":8000 "') do taskkill /F /PID %%a >nul 2>&1
+echo   * Backend detenido.
 echo.
 
-:: --- Detener Frontend ---
+:: --- Detener Frontend (por puerto 5173) ---
 echo [2/3] Deteniendo Frontend...
-taskkill /F /FI "WindowTitle eq FoodStore-Frontend" /T >nul 2>&1
-if %ERRORLEVEL% equ 0 (
-    echo   * Frontend detenido.
-) else (
-    :: Fallback: matar por puerto 5173
-    for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R ":5173 "') do (
-        taskkill /F /PID %%a >nul 2>&1
-    )
-    echo   * Frontend detenido (por puerto).
-)
+for /f "tokens=5" %%a in ('netstat -ano ^| findstr /R ":5173 "') do taskkill /F /PID %%a >nul 2>&1
+echo   * Frontend detenido.
 echo.
 
 :: --- Detener PostgreSQL ---
@@ -166,5 +149,5 @@ echo.
 echo ============================================
 echo   TODOS LOS SERVICIOS DETENIDOS
 echo ============================================
-timeout /t 3 /nobreak >nul
-exit /b 0
+echo.
+pause

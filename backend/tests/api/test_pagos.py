@@ -5,6 +5,7 @@ from unittest.mock import patch, MagicMock
 from sqlmodel import SQLModel, Session, create_engine
 from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
+import logging
 import time
 
 from app.main import app
@@ -363,7 +364,7 @@ class TestWebhookPago:
 
         assert response.status_code == 200
         result = response.json()
-        assert result["status"] == "processed"
+        assert result["status"] == "ok"
 
         # Verify that the order was transitioned to CONFIRMADO
         session.refresh(pedido)
@@ -399,7 +400,7 @@ class TestWebhookPago:
 
         assert response.status_code == 200
         result = response.json()
-        assert result["status"] == "processed"
+        assert result["status"] == "ok"
 
         # Verify order is still PENDIENTE
         session.refresh(pedido)
@@ -425,7 +426,7 @@ class TestWebhookPago:
         mock_sdk.payment.return_value = mock_payment
         mock_get_sdk.return_value = mock_sdk
 
-        # First webhook
+        # First webhook — BackgroundTasks procesa después de la respuesta
         resp1 = client.post(
             "/api/v1/pagos/webhook",
             json={
@@ -433,9 +434,9 @@ class TestWebhookPago:
                 "data": {"id": "99999"},
             },
         )
-        assert resp1.json()["status"] == "processed"
+        assert resp1.json()["status"] == "ok"
 
-        # Second webhook with same data
+        # Second webhook with same data — debe detectar duplicado internamente
         resp2 = client.post(
             "/api/v1/pagos/webhook",
             json={
@@ -443,8 +444,8 @@ class TestWebhookPago:
                 "data": {"id": "99999"},
             },
         )
-        result2 = resp2.json()
-        assert result2["status"] == "duplicate"
+        assert resp2.status_code == 200
+        assert resp2.json()["status"] == "ok"
 
         # Order should only be CONFIRMADO once
         session.refresh(pedido)
@@ -486,6 +487,59 @@ class TestWebhookPago:
 
         # Reset
         settings.MERCADOPAGO_WEBHOOK_SECRET = ""
+
+    def test_webhook_logging(self, caplog, client, session):
+        """3.2 Webhook debe registrar pasos clave en el log."""
+        from app.main import app
+
+        # Reset limiter to get a clean 200 response
+        if hasattr(app.state, "limiter") and hasattr(app.state.limiter, "reset"):
+            try:
+                app.state.limiter.reset()
+            except Exception:
+                pass
+
+        caplog.set_level(logging.INFO)
+
+        client.post(
+            "/api/v1/pagos/webhook",
+            json={"type": "test", "data": {}},
+        )
+
+        assert "Webhook recibido" in caplog.text
+        assert "Webhook encolado" in caplog.text
+        assert "Firma webhook validada" in caplog.text
+
+    def test_webhook_rate_limit(self, client, session):
+        """3.1 Rate limiting: 10/min, 11th request debe retornar 429."""
+        from app.main import app
+
+        # Reset limiter state for clean counts
+        if hasattr(app.state, "limiter") and hasattr(app.state.limiter, "reset"):
+            try:
+                app.state.limiter.reset()
+            except Exception:
+                pass
+
+        body = {"type": "test", "data": {}}
+
+        # First 10 requests should return 200
+        for i in range(10):
+            resp = client.post("/api/v1/pagos/webhook", json=body)
+            assert resp.status_code == 200, (
+                f"Request {i + 1} esperaba 200, obtuvo {resp.status_code}"
+            )
+
+        # 11th request should be rate limited → 429
+        resp = client.post("/api/v1/pagos/webhook", json=body)
+        assert resp.status_code == 429
+
+        # Reset limiter so subsequent tests are not affected
+        if hasattr(app.state, "limiter") and hasattr(app.state.limiter, "reset"):
+            try:
+                app.state.limiter.reset()
+            except Exception:
+                pass
 
 
 class TestTimezoneModelo:
@@ -615,7 +669,8 @@ class TestExternalReference:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "error"
+        assert data["status"] == "ok"
+        # Processing error is now logged via BackgroundTasks, not returned in response
 
         pagos = session.exec(select(Pago)).all()
         orphan = [p for p in pagos if p.pedido_id == 0 or p.pedido_id is None]

@@ -76,7 +76,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         ))
     
     problem_detail = create_problem_response(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         title="Validation Error",
         detail="Request validation failed",
         error_type="https://api.foodstore.com/errors/validation-error",
@@ -84,7 +84,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     )
     
     return JSONResponse(
-        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=problem_detail,
     )
 
