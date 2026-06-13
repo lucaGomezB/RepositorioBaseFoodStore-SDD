@@ -93,8 +93,11 @@ export async function responseInterceptorRejected(
   // NEVER retry auth endpoints that don't need token refresh:
   // - /auth/refresh: would cause recursive deadlock
   // - /auth/login, /auth/register: invalid credentials should be handled by the component, not by refresh flow
+  // - /auth/me: session check is managed by AuthInitializer in providers.tsx,
+  //   which has its own refresh logic. Letting the interceptor handle /auth/me
+  //   creates a race between the interceptor's redirect and checkSession().
   const url = originalRequest.url ?? '';
-  if (url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/register')) {
+  if (url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/register') || url.includes('/auth/me')) {
     return Promise.reject(error);
   }
 
