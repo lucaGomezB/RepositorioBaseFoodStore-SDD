@@ -90,6 +90,14 @@ export async function responseInterceptorRejected(
     return Promise.reject(error);
   }
 
+  // NEVER retry auth endpoints that don't need token refresh:
+  // - /auth/refresh: would cause recursive deadlock
+  // - /auth/login, /auth/register: invalid credentials should be handled by the component, not by refresh flow
+  const url = originalRequest.url ?? '';
+  if (url.includes('/auth/refresh') || url.includes('/auth/login') || url.includes('/auth/register')) {
+    return Promise.reject(error);
+  }
+
   // Handle 401 with refresh flow
   if (error.response?.status === 401 && !originalRequest._retry) {
     if (isRefreshing) {
