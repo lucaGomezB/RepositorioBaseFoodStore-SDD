@@ -128,6 +128,9 @@ export async function responseInterceptorRejected(
       return httpClient(originalRequest);
     } catch (refreshError) {
       processQueue(refreshError, null);
+      // Clear persisted auth state BEFORE redirect so the next page load
+      // doesn't find isLoggedIn=true and re-enter the 401 loop
+      useAuthStore.getState().logout();
       window.location.href = '/login';
       return Promise.reject(refreshError);
     } finally {
