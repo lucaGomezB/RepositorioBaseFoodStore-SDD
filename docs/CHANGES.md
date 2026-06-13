@@ -93,3 +93,15 @@ Revisás la propuesta, la discutís, la ajustás si hace falta — y recién ent
 - **El orden importa.** Si el change B necesita código del change A, A tiene que estar archivado antes de proponer B.
 - **Un change = un commit** (o varios commits atómicos). Nunca mezcles dos changes en un mismo commit.
 - **Las specs son código.** Se versionan en git, se revisan en PRs, evolucionan con el proyecto.
+
+---
+
+## Registro de cambios archivados
+
+Última actualización: 2026-06-13
+
+### Ya realizado (archivado en OPSX)
+
+| Change | Estado | Evidencia |
+|--------|--------|-----------|
+| fix-httpclient-ubicacion-direcciones | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-httpclient-ubicacion-direcciones/` |

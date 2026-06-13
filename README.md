@@ -4,9 +4,9 @@ Sistema integral de e-commerce para gestion de pedidos de comida con React, Fast
 
 **Spec-Driven Development (SDD)** · v5.0 · Arquitectura Feature-First
 
-| Backend Tests | Frontend Tests | TypeScript | Build | Cobertura |
-|---------------|---------------|------------|-------|-----------|
-| 254 ✅ | 81 ✅ | Clean ✅ | OK ✅ | 84% 📊 |
+| Backend | Frontend | Base de Datos | Metodologia |
+|---------|----------|---------------|-------------|
+| FastAPI + SQLModel | React 18 + TypeScript + Vite | PostgreSQL 15+ | OPSX / SDD |
 
 ---
 
@@ -63,6 +63,15 @@ uvicorn app.main:app --reload
 **Backend disponible**: http://localhost:8000  
 **Swagger UI**: http://localhost:8000/docs  
 **ReDoc**: http://localhost:8000/redoc
+
+### Usuarios de prueba (post-seed)
+
+| Email | Contrasena | Rol |
+|-------|-----------|-----|
+| `admin@foodstore.com` | `admin123` | ADMIN (acceso completo) |
+| `cocina@foodstore.com` | `cocina123` | COCINA (pantalla de cocina) |
+
+Ver [`docs/USUARIOS_DE_PRUEBA.md`](docs/USUARIOS_DE_PRUEBA.md) para la lista completa de datos de prueba.
 
 ### 3. Setup Frontend
 
@@ -161,7 +170,8 @@ Pages → Features → Entities → Shared
 | [`docs/Descripcion.txt`](docs/Descripcion.txt) | Vision general, actores, stack tecnologico |
 | [`docs/Historias_de_usuario.txt`](docs/Historias_de_usuario.txt) | US-000 a US-076 completas |
 | [`docs/GUION_PRESENTACION.md`](docs/GUION_PRESENTACION.md) | Guion para video de demostracion |
-| [`docs/CHANGES.md`](docs/CHANGES.md) | Guia de workflow OPSX |
+| [`docs/CHANGES.md`](docs/CHANGES.md) | Registro de cambios archivados |
+| [`docs/USUARIOS_DE_PRUEBA.md`](docs/USUARIOS_DE_PRUEBA.md) | Usuarios, credenciales y datos de prueba |
 | [`backend/README.md`](backend/README.md) | Setup detallado backend |
 | [`frontend/README.md`](frontend/README.md) | Setup detallado frontend |
 
@@ -247,4 +257,4 @@ MIT License — ver archivo [`LICENSE`](LICENSE)
 ---
 
 **Spec-Driven Development (SDD)** · Food Store v5.0  
-Ultima actualizacion: 2026-05-17
+Ultima actualizacion: 2026-06-13
