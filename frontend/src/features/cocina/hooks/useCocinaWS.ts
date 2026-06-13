@@ -9,7 +9,11 @@ import type { PedidoCocinaRead, CocinaEventType } from '../cocina.types';
 import { fetchCocinaPedidos, transicionarEstadoPedido } from '../api';
 
 // ── Constants ──────────────────────────────────────────────────────────────
-const WS_BASE = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/api/v1/cocina/ws`;
+// Derive WS URL from the same API base used by httpClient.
+// If VITE_API_BASE_URL is set (e.g. http://localhost:8000/api/v1), connect
+// directly to the backend. Otherwise use a relative URL (Vite proxy).
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api/v1';
+const WS_URL = `${API_BASE.replace(/^http/, 'ws')}/cocina/ws`;
 const POLL_INTERVAL_MS = 30000; // 30 second polling fallback
 const RECONNECT_BASE_MS = 1000; // 1 second initial reconnect delay
 const RECONNECT_MAX_MS = 30000; // 30 second max reconnect delay
@@ -106,7 +110,7 @@ export function useCocinaWS(): UseCocinaWSReturn {
     }
 
     try {
-      const ws = new WebSocket(WS_BASE);
+      const ws = new WebSocket(WS_URL);
       wsRef.current = ws;
 
       ws.onopen = () => {
