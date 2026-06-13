@@ -137,8 +137,8 @@ def metricas_ventas(
         if hasta:
             filters.append(Pedido.created_at <= hasta)
 
-        # DATE_TRUNC is PostgreSQL native — works with the configured DATABASE_URL
-        periodo = func.date_trunc(granularidad, Pedido.created_at)
+        # DATE_TRUNC requires timestamptz; cast naive datetime to UTC
+        periodo = func.date_trunc(granularidad, func.timezone('UTC', Pedido.created_at))
 
         rows = uow.session.exec(
             select(

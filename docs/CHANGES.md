@@ -105,3 +105,4 @@ Revisás la propuesta, la discutís, la ajustás si hace falta — y recién ent
 | Change | Estado | Evidencia |
 |--------|--------|-----------|
 | fix-httpclient-ubicacion-direcciones | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-httpclient-ubicacion-direcciones/` |
+| fix-cocina-kds-and-auth | Hecho (archivado 2026-06-13) | `openspec/changes/archive/2026-06-13-fix-cocina-kds-and-auth/` |
