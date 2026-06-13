@@ -354,7 +354,7 @@ class TestListarPedidosCocina:
     # Data filtering scenarios
     # ------------------------------------------------------------------
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_respuesta_incluye_confirmados_y_en_preparacion(
         self, mock_get_tiempo, session, client
     ):
@@ -394,7 +394,7 @@ class TestListarPedidosCocina:
         assert "EN_PREPARACION" in estados
         assert data["total_count"] == 2
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_pendientes_no_incluidos(self, mock_get_tiempo, session, client):
         """
         Scenario: PENDIENTE orders are excluded from KDS
@@ -430,7 +430,7 @@ class TestListarPedidosCocina:
         assert pedido_pend.id not in pedido_ids
         assert data["total_count"] == 1
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_ordenados_por_antiguedad(self, mock_get_tiempo, session, client):
         """
         Scenario: KDS orders ordered by age
@@ -490,7 +490,7 @@ class TestListarPedidosCocina:
         assert data["items"] == []
         assert data["total_count"] == 0
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=120)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={1: 120})
     def test_tiempo_en_cocina_calculado(self, mock_get_tiempo, session, client):
         """
         Scenario: Kitchen elapsed time is returned
@@ -516,7 +516,7 @@ class TestListarPedidosCocina:
         # The mock returns 120, so we expect 120
         assert data["items"][0]["tiempo_en_cocina_segundos"] == 120
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_items_incluyen_nombre_snapshot_y_cantidad(
         self, mock_get_tiempo, session, client
     ):
@@ -751,7 +751,7 @@ class TestCocinaServiceUnit:
     These tests bypass the HTTP layer and call the service directly.
     """
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_listar_pedidos_estructura_correcta(self, mock_get_tiempo, session):
         """
         Scenario: Service returns correct response structure
@@ -776,7 +776,7 @@ class TestCocinaServiceUnit:
         assert hasattr(result, "total_count")
         assert result.total_count == 1
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=0)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={})
     def test_items_incluyen_nombre_snapshot(self, mock_get_tiempo, session):
         """
         Scenario: Service items include nombre_snapshot and cantidad
@@ -805,7 +805,7 @@ class TestCocinaServiceUnit:
         assert detalle.nombre_producto == "Pizza Margherita"
         assert detalle.cantidad == 1
 
-    @patch("app.domain.cocina.repository.CocinaRepository.get_tiempo_en_cocina", return_value=3600)
+    @patch("app.domain.cocina.repository.CocinaRepository.listar_pedidos_con_tiempo", return_value={1: 3600})
     def test_tiempo_en_cocina_segundos(self, mock_get_tiempo, session):
         """
         Scenario: Service calculates kitchen elapsed time

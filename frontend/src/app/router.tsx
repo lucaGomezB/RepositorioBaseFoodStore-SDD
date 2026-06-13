@@ -83,7 +83,7 @@ export const routes: RouteObject[] = [
           { path: 'cocina', element: <CocinaPage /> },
         ],
       },
-      // Protected: Admin-only pages
+      // Protected: Admin-only pages (role 1 = ADMIN required)
       {
         element: <ProtectedRoute requiredRoles={[1]} />,
         children: [
